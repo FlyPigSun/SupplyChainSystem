@@ -1,0 +1,85 @@
+{
+  "description": "成本核查预警规则（修改后立即生效，无需重启服务）。支持占比区间(%)和金额绝对值区间(元)双重检查。",
+  "rules": [
+    {
+      "id": "food_cost",
+      "label": "食材成本",
+      "keywords": ["食材成本", "原料成本", "原材料成本"],
+      "minPercent": 40,
+      "maxPercent": 50,
+      "message": "食材成本占比应在 40%-50% 之间"
+    },
+    {
+      "id": "packaging_cost",
+      "label": "包材成本",
+      "keywords": ["包材成本", "包材费", "包装成本"],
+      "minPercent": 8,
+      "maxPercent": 15,
+      "message": "包材成本占比应在 8%-15% 之间"
+    },
+    {
+      "id": "product_total",
+      "label": "成品合计",
+      "keywords": ["成品合计", "成品总计", "成品总成本"],
+      "minPercent": 45,
+      "maxPercent": 60,
+      "message": "成品合计占比应在 45%-60% 之间"
+    },
+    {
+      "id": "labor_cost",
+      "label": "人工费用",
+      "keywords": ["人工费用", "人工成本", "人工费"],
+      "minPercent": 10,
+      "maxPercent": 20,
+      "message": "人工费用占比应在 10%-20% 之间"
+    },
+    {
+      "id": "utility_cost",
+      "label": "水电",
+      "keywords": ["水电费用", "水电费", "水电", "水电气"],
+      "minPercent": 0,
+      "maxPercent": 5,
+      "message": "水电费用占比应不超过 5%"
+    },
+    {
+      "id": "logistics_cost",
+      "label": "物流",
+      "keywords": ["物流费用", "物流费", "物流", "运输费用", "配送费"],
+      "minPercent": 0,
+      "maxPercent": 2,
+      "message": "物流费用占比应不超过 2%"
+    },
+    {
+      "id": "tax_cost",
+      "label": "税收",
+      "keywords": ["税收", "税费", "税金"],
+      "minPercent": 11,
+      "maxPercent": 13,
+      "message": "税收占比应在 11%-13% 之间"
+    },
+    {
+      "id": "depreciation_cost",
+      "label": "折旧费",
+      "keywords": ["折旧费用", "折旧费", "折旧", "设备折旧"],
+      "minPercent": 0,
+      "maxPercent": 3,
+      "message": "折旧费用占比应不超过 3%"
+    },
+    {
+      "id": "management_cost",
+      "label": "管理费",
+      "keywords": ["管理费用", "管理费"],
+      "minPercent": 0,
+      "maxPercent": 2,
+      "message": "管理费用占比应不超过 2%"
+    },
+    {
+      "id": "profit",
+      "label": "利润费",
+      "keywords": ["利润", "利润费", "净利润", "毛利润"],
+      "minPercent": 5,
+      "maxPercent": null,
+      "message": "利润占比应不低于 5%"
+    }
+  ]
+}
