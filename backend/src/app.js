@@ -29,7 +29,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // 中间件
-const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:8080,http://localhost:5173').split(',');
+const ALLOWED_ORIGINS = (process.env.CORS_ORIGINS || 'http://localhost:8080,http://localhost:5173,http://yuantaste.com,http://www.yuantaste.com,http://47.116.200.214').split(',');
 app.use(cors({
   origin: (origin, callback) => {
     // 允许无 origin 的请求（如服务端请求、Postman）
