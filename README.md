@@ -2,6 +2,8 @@
 
 供应链产品配方与原料价格管理平台，支持配方管理、原料价格维护、智能价格匹配、用量计算、成本核查等功能。
 
+**GitHub**: https://github.com/FlyPigSun/SupplyChainSystem
+
 ## 技术栈
 
 | 层级 | 技术 |
