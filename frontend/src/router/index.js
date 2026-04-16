@@ -63,6 +63,11 @@ const routes = [
         meta: { title: '账号管理', admin: true }
       }
     ]
+  },
+  {
+    path: '/:pathMatch(.*)*',
+    name: 'NotFound',
+    redirect: '/'
   }
 ]
 
@@ -81,14 +86,26 @@ router.beforeEach((to, from, next) => {
   } catch {
     localStorage.removeItem('user')
   }
-  
+
+  // 未登录访问非公开页面 → 跳转登录页
   if (!to.meta.public && !token) {
     next('/login')
-  } else if (to.meta.admin && user?.role !== 'admin') {
-    next('/')
-  } else {
-    next()
+    return
   }
+
+  // 非管理员访问管理员页面 → 跳转首页
+  if (to.meta.admin && user?.role !== 'admin') {
+    next('/')
+    return
+  }
+
+  // 404 页面：已登录跳转首页，未登录跳转登录页
+  if (to.name === 'NotFound') {
+    next(token ? '/' : '/login')
+    return
+  }
+
+  next()
 })
 
 export default router
