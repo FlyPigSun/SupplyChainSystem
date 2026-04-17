@@ -28,6 +28,12 @@ function getDatabase() {
     });
     // 启用外键约束
     db.run('PRAGMA foreign_keys = ON');
+    // 启用 WAL 模式，提高写入性能和数据安全性
+    db.run('PRAGMA journal_mode = WAL');
+    // 设置同步模式为 NORMAL（性能和安全性平衡）
+    db.run('PRAGMA synchronous = NORMAL');
+    // 设置缓存大小为 10000 页（约 40MB）
+    db.run('PRAGMA cache_size = 10000');
   }
   return db;
 }
