@@ -55,7 +55,11 @@ export const productApi = {
   getTypes: () => api.get('/products/types'),
   create: (data) => api.post('/products', data),
   update: (id, data) => api.put(`/products/${id}`, data),
-  delete: (id) => api.delete(`/products/${id}`)
+  delete: (id) => api.delete(`/products/${id}`),
+  export: (ids) => api.get('/products/export/excel', {
+    params: { ids: ids?.join(',') },
+    responseType: 'blob'
+  })
 }
 
 // 价格

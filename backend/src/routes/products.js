@@ -3,6 +3,7 @@
  */
 
 const express = require('express');
+const XLSX = require('xlsx');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { queryAsync, getAsync, runAsync } = require('../utils/db');
 
@@ -179,6 +180,127 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     res.json({ ok: true, msg: '删除成功' });
   } catch (err) {
     res.status(500).json({ ok: false, msg: '删除失败' });
+  }
+});
+
+// 批量导出产品配方
+router.get('/export/excel', authMiddleware, async (req, res) => {
+  try {
+    const { ids } = req.query;
+    
+    let sql = 'SELECT * FROM products WHERE 1=1';
+    const params = [];
+    
+    if (ids) {
+      const idList = ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+      if (idList.length > 0) {
+        const placeholders = idList.map(() => '?').join(',');
+        sql += ` AND id IN (${placeholders})`;
+        params.push(...idList);
+      }
+    }
+    
+    sql += ' ORDER BY code, name';
+    
+    const products = await queryAsync(sql, params);
+    
+    if (products.length === 0) {
+      return res.status(400).json({ ok: false, msg: '没有可导出的产品' });
+    }
+    
+    const productIds = products.map(p => p.id);
+    const placeholders = productIds.map(() => '?').join(',');
+    const materials = await queryAsync(
+      `SELECT * FROM product_materials WHERE product_id IN (${placeholders}) ORDER BY product_id, id`,
+      productIds
+    );
+    
+    // 构建导出数据（每行一个原料）
+    const exportData = [];
+    for (const product of products) {
+      const productMaterials = materials.filter(m => m.product_id === product.id);
+      if (productMaterials.length === 0) {
+        // 产品没有配方，也导出一行（原料为空）
+        exportData.push({
+          '物料编码': product.code,
+          '产品名称': product.name,
+          '产品类型': product.type || '',
+          '规格': product.unit || '个',
+          '供应商': '',
+          '原料名称': '',
+          '统一名称': '',
+          '品牌规格': '',
+          '品牌': '',
+          '原料生产商': '',
+          '产地': '',
+          '执行标准': '',
+          '对应比例': '',
+          '单个克重(g)': ''
+        });
+      } else {
+        for (const m of productMaterials) {
+          exportData.push({
+            '物料编码': product.code,
+            '产品名称': product.name,
+            '产品类型': product.type || '',
+            '规格': product.unit || '个',
+            '供应商': m.supplier || '',
+            '原料名称': m.material_name || '',
+            '统一名称': m.unified_name || '',
+            '品牌规格': m.brand_spec || '',
+            '品牌': m.brand || '',
+            '原料生产商': m.manufacturer || '',
+            '产地': m.origin || '',
+            '执行标准': m.standard || '',
+            '对应比例': m.ratio || '',
+            '单个克重(g)': m.weight || ''
+          });
+        }
+      }
+    }
+    
+    // 创建Excel
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+    
+    // 设置列宽
+    ws['!cols'] = [
+      { wch: 12 },  // 物料编码
+      { wch: 25 },  // 产品名称
+      { wch: 12 },  // 产品类型
+      { wch: 8 },   // 规格
+      { wch: 15 },  // 供应商
+      { wch: 20 },  // 原料名称
+      { wch: 15 },  // 统一名称
+      { wch: 15 },  // 品牌规格
+      { wch: 10 },  // 品牌
+      { wch: 15 },  // 原料生产商
+      { wch: 10 },  // 产地
+      { wch: 12 },  // 执行标准
+      { wch: 10 },  // 对应比例
+      { wch: 12 }   // 单个克重
+    ];
+    
+    XLSX.utils.book_append_sheet(wb, ws, '产品配方');
+    
+    const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+    
+    // 记录操作日志
+    await runAsync(
+      'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',
+      [req.user.username, 'export_products', `导出 ${products.length} 个产品的配方`]
+    );
+    
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
+    const filename = `产品配方导出_${timestamp}.xlsx`;
+    
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="${encodeURIComponent(filename)}"`);
+    res.send(buffer);
+    
+  } catch (err) {
+    console.error('导出失败:', err);
+    res.status(500).json({ ok: false, msg: '导出失败: ' + err.message });
   }
 });
 

@@ -2,9 +2,14 @@
   <div class="products-page">
     <div class="page-header">
       <h2 class="page-title">产品配方管理</h2>
-      <el-button type="primary" @click="showImportDialog" v-if="authStore.isAdmin">
-        <el-icon><Upload /></el-icon> 导入配方
-      </el-button>
+      <div class="header-actions">
+        <el-button type="success" @click="exportProducts" :loading="exportLoading">
+          <el-icon><Download /></el-icon> 导出配方
+        </el-button>
+        <el-button type="primary" @click="showImportDialog" v-if="authStore.isAdmin">
+          <el-icon><Upload /></el-icon> 导入配方
+        </el-button>
+      </div>
     </div>
     
     <el-card class="search-card" shadow="never">
@@ -31,6 +36,12 @@
         <el-table-column prop="code" label="产品编码" width="120" />
         <el-table-column prop="name" label="产品名称" min-width="160" show-overflow-tooltip />
         <el-table-column prop="type" label="类型" width="120" />
+        <el-table-column label="供应商" min-width="140" show-overflow-tooltip>
+          <template #default="{ row }">
+            <span v-if="getSuppliers(row.materials).length === 0" class="no-supplier">未填写</span>
+            <span v-else>{{ getSuppliers(row.materials).join('、') }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="unit" label="单位" width="70" align="center" />
         <el-table-column label="原料数量" width="90" align="center">
           <template #default="{ row }">
@@ -210,6 +221,12 @@
       <h4 style="margin: 16px 0 8px; font-size: 14px; color: #1d2129;">配方明细</h4>
       <el-table :data="currentProduct.materials" border size="small">
         <el-table-column prop="material_name" label="原料名称" min-width="120" />
+        <el-table-column prop="supplier" label="供应商" width="100">
+          <template #default="{ row }">
+            <span v-if="row.supplier">{{ row.supplier }}</span>
+            <span v-else class="no-supplier">-</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="brand" label="品牌" width="100" />
         <el-table-column prop="manufacturer" label="原料生产商" min-width="120" show-overflow-tooltip />
         <el-table-column prop="weight" label="用量" width="100" />
@@ -222,7 +239,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Upload, Document, Loading, Plus, Delete, Search } from '@element-plus/icons-vue'
+import { Upload, Document, Loading, Plus, Delete, Search, Download } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { productApi, recipeImportApi } from '../api'
 
@@ -267,6 +284,9 @@ const selectedFile = ref(null)
 const importMode = ref('upsert')
 const importResult = ref(null)
 const importLoading = ref(false)
+
+// 导出相关
+const exportLoading = ref(false)
 
 const showImportDialog = () => {
   importResult.value = null
@@ -450,6 +470,47 @@ const deleteProduct = async (row) => {
   }
 }
 
+// 提取产品的供应商列表（去重）
+const getSuppliers = (materials) => {
+  if (!materials || materials.length === 0) return []
+  const suppliers = materials
+    .map(m => m.supplier)
+    .filter(s => s && s.trim() !== '')
+  return [...new Set(suppliers)]
+}
+
+// 导出产品配方
+const exportProducts = async () => {
+  if (products.value.length === 0) {
+    ElMessage.warning('没有可导出的产品')
+    return
+  }
+
+  exportLoading.value = true
+  try {
+    const productIds = products.value.map(p => p.id)
+    const blob = await productApi.export(productIds)
+
+    // 下载文件
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-')
+    link.download = `产品配方导出_${timestamp}.xlsx`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+
+    ElMessage.success(`成功导出 ${products.value.length} 个产品的配方`)
+  } catch (error) {
+    console.error('导出失败:', error)
+    ElMessage.error('导出失败：' + (error.msg || '未知错误'))
+  } finally {
+    exportLoading.value = false
+  }
+}
+
 onMounted(() => {
   loadTypes()
   loadProducts()
@@ -466,6 +527,11 @@ onMounted(() => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
 }
 
 .page-title {
@@ -497,6 +563,11 @@ onMounted(() => {
   font-weight: 600;
   color: #1d2129;
   padding: 0 6px;
+}
+
+.no-supplier {
+  color: #f56c6c;
+  font-size: 12px;
 }
 
 .material-row {
