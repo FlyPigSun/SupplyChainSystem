@@ -9,6 +9,10 @@ const { queryAsync, getAsync, runAsync } = require('../utils/db');
 
 const router = express.Router();
 
+// 空值安全处理
+const safeStr = (val, defaultVal = '') => val || defaultVal;
+const safeNum = (val, defaultVal = 0) => val ?? defaultVal;
+
 // 获取产品类型列表
 router.get('/types', authMiddleware, async (req, res) => {
   try {
@@ -104,8 +108,8 @@ router.get('/export/excel', authMiddleware, async (req, res) => {
         exportData.push({
           '物料编码': product.code,
           '产品名称': product.name,
-          '产品类型': product.type || '',
-          '规格': product.unit || '个',
+          '产品类型': safeStr(product.type),
+          '规格': safeStr(product.unit, '个'),
           '供应商': '',
           '原料名称': '',
           '统一名称': '',
@@ -122,18 +126,18 @@ router.get('/export/excel', authMiddleware, async (req, res) => {
           exportData.push({
             '物料编码': product.code,
             '产品名称': product.name,
-            '产品类型': product.type || '',
-            '规格': product.unit || '个',
-            '供应商': m.supplier || '',
-            '原料名称': m.material_name || '',
-            '统一名称': m.unified_name || '',
-            '品牌规格': m.brand_spec || '',
-            '品牌': m.brand || '',
-            '原料生产商': m.manufacturer || '',
-            '产地': m.origin || '',
-            '执行标准': m.standard || '',
-            '对应比例': m.ratio || '',
-            '单个克重(g)': m.weight || ''
+            '产品类型': safeStr(product.type),
+            '规格': safeStr(product.unit, '个'),
+            '供应商': safeStr(m.supplier),
+            '原料名称': safeStr(m.material_name),
+            '统一名称': safeStr(m.unified_name),
+            '品牌规格': safeStr(m.brand_spec),
+            '品牌': safeStr(m.brand),
+            '原料生产商': safeStr(m.manufacturer),
+            '产地': safeStr(m.origin),
+            '执行标准': safeStr(m.standard),
+            '对应比例': safeStr(m.ratio),
+            '单个克重(g)': safeStr(m.weight)
           });
         }
       }
@@ -203,22 +207,22 @@ router.get('/:id', authMiddleware, async (req, res) => {
 function insertMaterials(productId, materials) {
   const promises = (materials || []).map(m => {
     return runAsync(
-      `INSERT INTO product_materials 
-       (product_id, material_name, unified_name, brand_spec, brand, supplier, manufacturer, origin, standard, ratio, weight, unit) 
+      `INSERT INTO product_materials
+       (product_id, material_name, unified_name, brand_spec, brand, supplier, manufacturer, origin, standard, ratio, weight, unit)
        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         productId,
-        m.materialName || m.name || '',
-        m.unifiedName || '',
-        m.brandSpec || '',
-        m.brand || '',
-        m.supplier || '',
-        m.manufacturer || '',
-        m.origin || '',
-        m.standard || '',
-        m.ratio || 0,
-        m.weight || 0,
-        m.unit || 'g'
+        safeStr(m.materialName || m.name),
+        safeStr(m.unifiedName),
+        safeStr(m.brandSpec),
+        safeStr(m.brand),
+        safeStr(m.supplier),
+        safeStr(m.manufacturer),
+        safeStr(m.origin),
+        safeStr(m.standard),
+        safeNum(m.ratio),
+        safeNum(m.weight),
+        safeStr(m.unit, 'g')
       ]
     );
   });
