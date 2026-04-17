@@ -72,7 +72,7 @@ router.get('/export/excel', authMiddleware, async (req, res) => {
     const params = [];
     
     if (ids) {
-      const idList = ids.split(',').map(id => parseInt(id)).filter(id => !isNaN(id));
+      const idList = ids.split(',').map(id => parseInt(id, 10)).filter(id => !isNaN(id));
       if (idList.length > 0) {
         const placeholders = idList.map(() => '?').join(',');
         sql += ` AND id IN (${placeholders})`;
