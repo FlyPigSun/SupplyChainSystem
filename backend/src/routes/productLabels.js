@@ -19,7 +19,7 @@ router.get('/', authMiddleware, async (req, res) => {
       params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
     }
     const listSql = `SELECT product_code as code, product_name as name, product_type as type, supplier,
-      GROUP_CONCAT(CASE WHEN level = 1 THEN ingredient END, '、') as ingredients,
+      GROUP_CONCAT(CASE WHEN level = 1 THEN ingredient END, '、' ORDER BY id) as ingredients,
       COUNT(CASE WHEN level = 1 THEN 1 END) as level1_count, COUNT(*) as total_count
       FROM product_labels ${where} GROUP BY product_code ORDER BY product_code LIMIT ? OFFSET ?`;
     const countSql = `SELECT COUNT(DISTINCT product_code) as total FROM product_labels ${where}`;
