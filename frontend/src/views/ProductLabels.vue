@@ -22,6 +22,8 @@
             <div class="ingredients-cell">{{ row.ingredients }}</div>
           </template>
         </el-table-column>
+        <el-table-column prop="level1Count" label="一级配料数量" width="110" align="center" />
+        <el-table-column prop="totalCount" label="所有配料数量" width="110" align="center" />
       </el-table>
 
       <el-pagination
