@@ -49,14 +49,23 @@ router.get('/', authMiddleware, async (req, res) => {
       });
     }
     
-    // 构建层级配料字符串（有二级配料的一级原料加粗）
+    // 构建层级配料字符串（有二级配料的一级原料加粗，含括号的二级配料名称加粗但括号内容不加粗）
     function buildIngredientStr(items) {
       const level1 = items.filter(i => i.level === 1);
       return level1.map(l1 => {
         const children = items.filter(i => i.level === 2 && i.parent === l1.name);
         if (children.length > 0) {
-          // 一级配料加粗，二级配料不加粗
-          return `<strong>${l1.name}</strong>（${children.map(c => c.name).join('、')}）`;
+          const childStr = children.map(c => {
+            // 含括号的二级配料：名称加粗，括号内容不加粗
+            const parenIdx = c.name.search(/[（(]/);
+            if (parenIdx > 0) {
+              const name = c.name.substring(0, parenIdx);
+              const rest = c.name.substring(parenIdx);
+              return `<strong>${name}</strong>${rest}`;
+            }
+            return c.name;
+          }).join('、');
+          return `<strong>${l1.name}</strong>（${childStr}）`;
         }
         return l1.name;
       }).join('、');
