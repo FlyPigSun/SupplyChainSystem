@@ -18,13 +18,45 @@ router.get('/', authMiddleware, async (req, res) => {
       where = 'WHERE (product_code LIKE ? OR product_name LIKE ? OR ingredient LIKE ?)';
       params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
     }
-    const listSql = `SELECT product_code as code, product_name as name, product_type as type, supplier,
-      GROUP_CONCAT(CASE WHEN level = 1 THEN ingredient END, '、' ORDER BY id) as ingredients,
-      COUNT(CASE WHEN level = 1 THEN 1 END) as level1_count, COUNT(*) as total_count
-      FROM product_labels ${where} GROUP BY product_code ORDER BY product_code LIMIT ? OFFSET ?`;
+    // 先查产品列表
+    const productSql = `SELECT DISTINCT product_code as code, product_name as name, product_type as type, supplier
+      FROM product_labels ${where} ORDER BY product_code LIMIT ? OFFSET ?`;
     const countSql = `SELECT COUNT(DISTINCT product_code) as total FROM product_labels ${where}`;
-    const [list, cnt] = await Promise.all([queryAsync(listSql, [...params, limit, offset]), getAsync(countSql, params)]);
-    res.json({ ok: true, data: list.map(i => ({ code: i.code, name: i.name, type: i.type, supplier: i.supplier, ingredients: i.ingredients || '', level1Count: i.level1_count, totalCount: i.total_count })), pagination: { page: parseInt(page), pageSize: limit, total: cnt?.total || 0 } });
+    const [products, cnt] = await Promise.all([queryAsync(productSql, [...params, limit, offset]), getAsync(countSql, params)]);
+    
+    // 查每个产品的配料详情，构建层级字符串
+    const codes = products.map(p => p.code);
+    let ingredientMap = {};
+    if (codes.length > 0) {
+      const placeholders = codes.map(() => '?').join(',');
+      const rows = await queryAsync(`SELECT * FROM product_labels WHERE product_code IN (${placeholders}) ORDER BY id`, codes);
+      rows.forEach(r => {
+        if (!ingredientMap[r.product_code]) ingredientMap[r.product_code] = [];
+        ingredientMap[r.product_code].push({ name: r.ingredient, level: r.level, parent: r.parent_ingredient });
+      });
+    }
+    
+    // 构建层级配料字符串
+    function buildIngredientStr(items) {
+      const level1 = items.filter(i => i.level === 1);
+      return level1.map(l1 => {
+        const children = items.filter(i => i.level === 2 && i.parent === l1.name);
+        if (children.length > 0) {
+          return `${l1.name}（${children.map(c => c.name).join('、')}）`;
+        }
+        return l1.name;
+      }).join('、');
+    }
+    
+    res.json({ ok: true, data: products.map(p => {
+      const items = ingredientMap[p.code] || [];
+      return {
+        code: p.code, name: p.name, type: p.type, supplier: p.supplier,
+        ingredients: buildIngredientStr(items),
+        level1Count: items.filter(i => i.level === 1).length,
+        totalCount: items.length
+      };
+    }), pagination: { page: parseInt(page), pageSize: limit, total: cnt?.total || 0 } });
   } catch (e) { res.status(500).json({ ok: false, msg: e.message }); }
 });
 
