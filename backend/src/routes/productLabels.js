@@ -38,29 +38,59 @@ router.get('/detail/:code', authMiddleware, async (req, res) => {
 });
 
 // 解析配料层级：复配膨松剂(焦磷酸二氢二钠、碳酸氢钠) → 一级+二级
-// 支持全角/半角括号，处理嵌套括号（只取第一个括号内容），排除含量标注
+// 支持全角/半角括号，正确处理嵌套括号，排除含量标注
 function parseIngredient(str) {
   const result = [];
   str = str.trim();
   
-  // 匹配全角或半角括号：复配膨松剂（...）或 复配膨松剂(...)
-  // 只匹配第一个括号对
-  const m = str.match(/^(.+?)[(（]([^)）]+)[)）]/);
-  if (m) {
-    const main = m[1].trim();
-    const inner = m[2].trim();
-    result.push({ name: main, level: 1, parent: null });
-    
-    // 判断括号内是否是含量标注（如 ≥4%、＞4%、≥10% 等）
-    // 含量标注特征：纯数字+百分比符号，或包含≥、＞、<等比较符号
-    const isContentMarker = /^[≥＞<≤≈≥]?\d+[%％]?$/.test(inner.replace(/\s/g, ''));
-    
-    if (!isContentMarker) {
-      inner.split(/[、,，]/).map(s => s.trim()).filter(Boolean).forEach(sub => result.push({ name: sub, level: 2, parent: main }));
-    }
-  } else {
+  // 找到第一个开括号的位置
+  const openIdx = str.search(/[(（]/);
+  if (openIdx === -1) {
     result.push({ name: str, level: 1, parent: null });
+    return result;
   }
+  
+  const main = str.substring(0, openIdx).trim();
+  
+  // 找到配对的闭括号（处理嵌套）
+  let depth = 0;
+  let closeIdx = -1;
+  const openChar = str[openIdx];
+  const closeChar = openChar === '(' ? ')' : '）';
+  
+  for (let i = openIdx; i < str.length; i++) {
+    if (str[i] === '(' || str[i] === '（') depth++;
+    else if (str[i] === ')' || str[i] === '）') {
+      depth--;
+      if (depth === 0) {
+        closeIdx = i;
+        break;
+      }
+    }
+  }
+  
+  if (closeIdx === -1) {
+    // 没找到配对的闭括号，当作一级配料
+    result.push({ name: str, level: 1, parent: null });
+    return result;
+  }
+  
+  const inner = str.substring(openIdx + 1, closeIdx).trim();
+  result.push({ name: main, level: 1, parent: null });
+  
+  // 判断括号内是否是含量标注（如 ≥4%、＞4%、≥10% 等）
+  const isContentMarker = /^[≥＞<≤≈≥]?\d+[%％]?$/.test(inner.replace(/\s/g, ''));
+  
+  if (!isContentMarker) {
+    // 按顿号分隔，但要注意分隔后可能还有残留括号（如 "牛奶调味粉（复合调味料"）
+    inner.split(/[、,，]/).map(s => s.trim()).filter(Boolean).forEach(sub => {
+      // 清理残留的不完整括号（如末尾的"（复合调味料"）
+      // 如果配料名以开括号结尾但没有闭括号，去掉这部分
+      const cleaned = sub.replace(/[（(][^)）]*$/, '').trim();
+      if (cleaned) result.push({ name: cleaned, level: 2, parent: main });
+    });
+  }
+  
   return result;
 }
 
