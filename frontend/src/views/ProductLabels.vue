@@ -17,16 +17,9 @@
         <el-table-column prop="name" label="产品名称" width="180" />
         <el-table-column prop="type" label="产品类型" width="100" />
         <el-table-column prop="supplier" label="生产工厂" width="150" />
-        <el-table-column prop="ingredients" label="产品配料表" min-width="300">
+        <el-table-column prop="ingredients" label="产品配料表" min-width="400">
           <template #default="{ row }">
             <div class="ingredients-cell">{{ row.ingredients }}</div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="level1Count" label="一级配料数量" width="100" align="center" />
-        <el-table-column prop="totalCount" label="所有配料数量" width="100" align="center" />
-        <el-table-column label="操作" width="80" fixed="right">
-          <template #default="{ row }">
-            <el-button type="primary" link size="small" @click="showDetail(row.code)">详情</el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -69,32 +62,7 @@
       </template>
     </el-dialog>
 
-    <!-- 详情对话框 -->
-    <el-dialog v-model="detailDialogVisible" :title="detailData?.name || '配料详情'" width="600px">
-      <div v-if="detailLoading" style="text-align: center; padding: 20px;">加载中...</div>
-      <div v-else-if="detailData" class="detail-content">
-        <div class="detail-info">
-          <span><strong>产品编码：</strong>{{ detailData.code }}</span>
-          <span><strong>产品类型：</strong>{{ detailData.type }}</span>
-          <span><strong>生产工厂：</strong>{{ detailData.supplier }}</span>
-        </div>
-        <el-divider />
-        <div class="ingredient-tree">
-          <div v-for="item in getLevel1Ingredients()" :key="item.id" class="ingredient-item">
-            <div class="level1">{{ item.name }}</div>
-            <div v-if="getLevel2Ingredients(item.name).length > 0" class="level2-list">
-              <div v-for="child in getLevel2Ingredients(item.name)" :key="child.id" class="level2">
-                {{ child.name }}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
-      <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
-      </template>
-    </el-dialog>
-  </div>
+    </div>
 </template>
 
 <script setup>
@@ -113,10 +81,6 @@ const importLoading = ref(false)
 const importMode = ref('upsert')
 const importFile = ref(null)
 const uploadRef = ref(null)
-
-const detailDialogVisible = ref(false)
-const detailLoading = ref(false)
-const detailData = ref(null)
 
 const isAdmin = computed(() => {
   try { return JSON.parse(localStorage.getItem('user'))?.role === 'admin' } catch { return false }
@@ -209,48 +173,12 @@ async function handleDownloadTemplate() {
     ElMessage.error('下载失败')
   }
 }
-
-async function showDetail(code) {
-  detailDialogVisible.value = true
-  detailLoading.value = true
-  detailData.value = null
-  try {
-    const res = await api.get(`/product-labels/detail/${code}`)
-    if (res.ok) {
-      detailData.value = res.data
-    } else {
-      ElMessage.error(res.msg || '加载失败')
-      detailDialogVisible.value = false
-    }
-  } catch (e) {
-    ElMessage.error('加载失败')
-    detailDialogVisible.value = false
-  } finally {
-    detailLoading.value = false
-  }
-}
-
-function getLevel1Ingredients() {
-  if (!detailData.value?.ingredients) return []
-  return detailData.value.ingredients.filter(i => i.level === 1)
-}
-
-function getLevel2Ingredients(parentName) {
-  if (!detailData.value?.ingredients) return []
-  return detailData.value.ingredients.filter(i => i.level === 2 && i.parent === parentName)
-}
 </script>
 
 <style scoped>
 .product-labels-page { padding: 0; }
 .header { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .actions { margin-left: auto; display: flex; gap: 8px; }
-.ingredients-cell { white-space: pre-wrap; line-height: 1.5; }
-.detail-info { display: flex; gap: 24px; flex-wrap: wrap; color: #606266; font-size: 14px; }
-.ingredient-tree { max-height: 500px; overflow-y: auto; }
-.ingredient-item { margin-bottom: 8px; }
-.level1 { font-weight: 500; color: #303133; font-size: 14px; }
-.level2-list { padding-left: 20px; margin-top: 4px; border-left: 2px solid #e4e7ed; }
-.level2 { color: #606266; font-size: 13px; padding: 2px 0; }
+.ingredients-cell { white-space: pre-wrap; line-height: 1.6; font-size: 13px; }
 @media (max-width: 768px) { .header { flex-direction: column; } .actions { margin-left: 0; width: 100%; } }
 </style>
