@@ -17,13 +17,13 @@
         <el-table-column prop="name" label="产品名称" width="180" />
         <el-table-column prop="type" label="产品类型" width="100" sortable="custom" />
         <el-table-column prop="supplier" label="生产工厂" width="150" sortable="custom" />
-        <el-table-column prop="ingredients" label="产品配料表" min-width="400">
+        <el-table-column prop="ingredients" label="产品配料表" min-width="300">
           <template #default="{ row }">
-            <div class="ingredients-cell">{{ row.ingredients }}</div>
+            <div class="ingredients-cell" v-html="row.ingredients"></div>
           </template>
         </el-table-column>
-        <el-table-column prop="level1Count" label="一级配料数量" width="120" align="center" sortable="custom" />
-        <el-table-column prop="totalCount" label="所有配料数量" width="120" align="center" sortable="custom" />
+        <el-table-column prop="level1Count" label="一级配料数量" width="130" align="center" sortable="custom" />
+        <el-table-column prop="totalCount" label="所有配料数量" width="130" align="center" sortable="custom" />
       </el-table>
 
       <el-pagination

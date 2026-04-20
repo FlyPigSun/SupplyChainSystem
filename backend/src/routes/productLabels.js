@@ -49,13 +49,13 @@ router.get('/', authMiddleware, async (req, res) => {
       });
     }
     
-    // 构建层级配料字符串
+    // 构建层级配料字符串（有二级配料的一级原料加粗）
     function buildIngredientStr(items) {
       const level1 = items.filter(i => i.level === 1);
       return level1.map(l1 => {
         const children = items.filter(i => i.level === 2 && i.parent === l1.name);
         if (children.length > 0) {
-          return `${l1.name}（${children.map(c => c.name).join('、')}）`;
+          return `<strong>${l1.name}</strong>（${children.map(c => c.name).join('、')}）`;
         }
         return l1.name;
       }).join('、');
