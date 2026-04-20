@@ -82,10 +82,28 @@ function parseIngredient(str) {
   const isContentMarker = /^[≥＞<≤≈≥]?\d+[%％]?$/.test(inner.replace(/\s/g, ''));
   
   if (!isContentMarker) {
-    // 按顿号分隔，但要注意分隔后可能还有残留括号（如 "牛奶调味粉（复合调味料"）
-    inner.split(/[、,，]/).map(s => s.trim()).filter(Boolean).forEach(sub => {
+    // 按顿号分隔，但要注意：
+    // 1. 分隔后可能还有残留括号（如 "牛奶调味粉（复合调味料"）
+    // 2. 有些配料名本身就包含顿号，如"单、双甘油脂肪酸酯"不应拆分
+    const parts = inner.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
+    
+    // 合并不应该拆分的配料（如"单"、"双甘油脂肪酸酯" → "单、双甘油脂肪酸酯"）
+    const merged = [];
+    for (let i = 0; i < parts.length; i++) {
+      const curr = parts[i];
+      const next = parts[i + 1];
+      
+      // 如果当前部分是"单"或"双"，且下一部分包含"甘油"、"酸"、"酯"等，则合并
+      if ((curr === '单' || curr === '双') && next && /^(甘油|.*酸|.*酯)/.test(next)) {
+        merged.push(curr + '、' + next);
+        i++; // 跳过下一项
+      } else {
+        merged.push(curr);
+      }
+    }
+    
+    merged.forEach(sub => {
       // 清理残留的不完整括号（如末尾的"（复合调味料"）
-      // 如果配料名以开括号结尾但没有闭括号，去掉这部分
       const cleaned = sub.replace(/[（(][^)）]*$/, '').trim();
       if (cleaned) result.push({ name: cleaned, level: 2, parent: main });
     });
