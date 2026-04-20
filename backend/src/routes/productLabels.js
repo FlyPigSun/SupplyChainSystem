@@ -49,27 +49,14 @@ router.get('/', authMiddleware, async (req, res) => {
       });
     }
     
-    // 判断是否含三级配料（括号内是配料列表，而非化学名称中的数字）
-    function hasSubIngredients(name) {
-      const match = name.match(/[（(]([^)）]+)[)）]/);
-      if (!match) return false;
-      const inner = match[1];
-      // 括号内含顿号或逗号分隔的多个成分 → 是三级配料
-      return /[、,，]/.test(inner);
-    }
-
     // 构建层级配料字符串（有二级配料的一级原料加粗）
     function buildIngredientStr(items) {
       const level1 = items.filter(i => i.level === 1);
       return level1.map(l1 => {
         const children = items.filter(i => i.level === 2 && i.parent === l1.name);
         if (children.length > 0) {
-          const childStr = children.map(c => {
-            // 含三级配料的二级配料加粗（括号内是配料列表）
-            if (hasSubIngredients(c.name)) return `<strong>${c.name}</strong>`;
-            return c.name;
-          }).join('、');
-          return `<strong>${l1.name}</strong>（${childStr}）`;
+          // 一级配料加粗，二级配料不加粗
+          return `<strong>${l1.name}</strong>（${children.map(c => c.name).join('、')}）`;
         }
         return l1.name;
       }).join('、');
