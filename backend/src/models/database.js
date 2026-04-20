@@ -115,24 +115,7 @@ function initDatabase() {
         )
       `);
 
-      // 产品配料表（配料表管理）
-      database.run(`
-        CREATE TABLE IF NOT EXISTS product_labels (
-          id INTEGER PRIMARY KEY AUTOINCREMENT,
-          product_code TEXT NOT NULL,
-          product_name TEXT NOT NULL,
-          product_type TEXT,
-          supplier TEXT,
-          ingredient TEXT NOT NULL,
-          level INTEGER DEFAULT 1,
-          parent_ingredient TEXT,
-          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          UNIQUE(product_code, ingredient, level)
-        )
-      `);
-
-      // 配料表（产品标签）
+      // 产品配料表（配料表管理 / 产品标签）
       database.run(`
         CREATE TABLE IF NOT EXISTS product_labels (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
