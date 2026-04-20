@@ -55,7 +55,12 @@ router.get('/', authMiddleware, async (req, res) => {
       return level1.map(l1 => {
         const children = items.filter(i => i.level === 2 && i.parent === l1.name);
         if (children.length > 0) {
-          return `<strong>${l1.name}</strong>（${children.map(c => c.name).join('、')}）`;
+          const childStr = children.map(c => {
+            // 含括号的二级配料表示有子配料（三级），加粗显示
+            if (/[（(]/.test(c.name)) return `<strong>${c.name}</strong>`;
+            return c.name;
+          }).join('、');
+          return `<strong>${l1.name}</strong>（${childStr}）`;
         }
         return l1.name;
       }).join('、');
