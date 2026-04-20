@@ -82,6 +82,30 @@ router.get('/detail/:code', authMiddleware, async (req, res) => {
   } catch (e) { res.status(500).json({ ok: false, msg: e.message }); }
 });
 
+// 按顿号/逗号分隔，但跳过括号内的分隔符（处理嵌套括号）
+function splitRespectingParens(str) {
+  const parts = [];
+  let depth = 0;
+  let current = '';
+  for (let i = 0; i < str.length; i++) {
+    const ch = str[i];
+    if (ch === '(' || ch === '（') {
+      depth++;
+      current += ch;
+    } else if (ch === ')' || ch === '）') {
+      depth--;
+      current += ch;
+    } else if (depth === 0 && /[、,，]/.test(ch)) {
+      if (current.trim()) parts.push(current.trim());
+      current = '';
+    } else {
+      current += ch;
+    }
+  }
+  if (current.trim()) parts.push(current.trim());
+  return parts;
+}
+
 // 解析配料层级：复配膨松剂(焦磷酸二氢二钠、碳酸氢钠) → 一级+二级
 // 支持全角/半角括号，正确处理嵌套括号，排除含量标注
 function parseIngredient(str) {
@@ -100,8 +124,6 @@ function parseIngredient(str) {
   // 找到配对的闭括号（处理嵌套）
   let depth = 0;
   let closeIdx = -1;
-  const openChar = str[openIdx];
-  const closeChar = openChar === '(' ? ')' : '）';
   
   for (let i = openIdx; i < str.length; i++) {
     if (str[i] === '(' || str[i] === '（') depth++;
@@ -127,10 +149,8 @@ function parseIngredient(str) {
   const isContentMarker = /^[≥＞<≤≈≥]?\d+[%％]?$/.test(inner.replace(/\s/g, ''));
   
   if (!isContentMarker) {
-    // 按顿号分隔，但要注意：
-    // 1. 分隔后可能还有残留括号（如 "牛奶调味粉（复合调味料"）
-    // 2. 有些配料名本身就包含顿号，如"单、双甘油脂肪酸酯"不应拆分
-    const parts = inner.split(/[、,，]/).map(s => s.trim()).filter(Boolean);
+    // 按顿号分隔，但跳过括号内的分隔符（处理嵌套括号）
+    const parts = splitRespectingParens(inner);
     
     // 合并不应该拆分的配料（如"单"、"双甘油脂肪酸酯" → "单、双甘油脂肪酸酯"）
     const merged = [];
