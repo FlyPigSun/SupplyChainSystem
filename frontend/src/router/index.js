@@ -57,6 +57,12 @@ const routes = [
         meta: { title: '成本核查' }
       },
       {
+        path: '/product-labels',
+        name: 'ProductLabels',
+        component: () => import('../views/ProductLabels.vue'),
+        meta: { title: '配料表管理' }
+      },
+      {
         path: '/users',
         name: 'UserManage',
         component: () => import('../views/UserManage.vue'),

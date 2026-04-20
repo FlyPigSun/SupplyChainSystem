@@ -24,6 +24,7 @@ const priceImportRoutes = require('./routes/priceImport');
 const calculatorImportRoutes = require('./routes/calculatorImport');
 const calculatorRoutes = require('./routes/calculator');
 const matchCorrectionRoutes = require('./routes/matchCorrections');
+const productLabelRoutes = require('./routes/productLabels');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -58,6 +59,7 @@ app.use('/api/price-import', priceImportRoutes);
 app.use('/api/calculator-import', calculatorImportRoutes);
 app.use('/api/calculator', calculatorRoutes);
 app.use('/api/match-corrections', matchCorrectionRoutes);
+app.use('/api/product-labels', productLabelRoutes);
 
 // 健康检查
 app.get('/api/health', (req, res) => {

@@ -44,6 +44,11 @@
           <span>成本核查</span>
         </el-menu-item>
 
+        <el-menu-item index="/product-labels">
+          <el-icon><List /></el-icon>
+          <span>配料表管理</span>
+        </el-menu-item>
+
         <el-menu-item index="/logs" v-if="authStore.isAdmin">
           <el-icon><Document /></el-icon>
           <span>操作日志</span>
@@ -122,7 +127,7 @@
 import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
-import { Expand, User } from '@element-plus/icons-vue'
+import { Expand, User, List } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
 import { authApi } from '../api'
 
