@@ -38,15 +38,28 @@ router.get('/detail/:code', authMiddleware, async (req, res) => {
 });
 
 // 解析配料层级：复配膨松剂(焦磷酸二氢二钠、碳酸氢钠) → 一级+二级
+// 支持全角/半角括号，处理嵌套括号（只取第一个括号内容），排除含量标注
 function parseIngredient(str) {
   const result = [];
-  const m = str.trim().match(/^(.+?)\((.+)\)$/);
+  str = str.trim();
+  
+  // 匹配全角或半角括号：复配膨松剂（...）或 复配膨松剂(...)
+  // 只匹配第一个括号对
+  const m = str.match(/^(.+?)[(（]([^)）]+)[)）]/);
   if (m) {
     const main = m[1].trim();
+    const inner = m[2].trim();
     result.push({ name: main, level: 1, parent: null });
-    m[2].split(/[、,，]/).map(s => s.trim()).filter(Boolean).forEach(sub => result.push({ name: sub, level: 2, parent: main }));
+    
+    // 判断括号内是否是含量标注（如 ≥4%、＞4%、≥10% 等）
+    // 含量标注特征：纯数字+百分比符号，或包含≥、＞、<等比较符号
+    const isContentMarker = /^[≥＞<≤≈≥]?\d+[%％]?$/.test(inner.replace(/\s/g, ''));
+    
+    if (!isContentMarker) {
+      inner.split(/[、,，]/).map(s => s.trim()).filter(Boolean).forEach(sub => result.push({ name: sub, level: 2, parent: main }));
+    }
   } else {
-    result.push({ name: str.trim(), level: 1, parent: null });
+    result.push({ name: str, level: 1, parent: null });
   }
   return result;
 }
@@ -66,6 +79,16 @@ router.post('/import', authMiddleware, adminMiddleware, upload.single('file'), a
       if (!pm[code]) pm[code] = { code, name: String(r['品名'] || '').trim(), type: String(r['产品类别'] || '').trim(), supplier: String(r['生产工厂名称'] || '').trim(), ingredients: [] };
       pm[code].ingredients.push(...parseIngredient(ing));
     });
+    // 去重：同一产品内，(ingredient, level) 相同的只保留第一个
+    for (const code of Object.keys(pm)) {
+      const seen = new Set();
+      pm[code].ingredients = pm[code].ingredients.filter(i => {
+        const key = `${i.level}|${i.name}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+    }
     let created = 0, updated = 0, skipped = 0, errors = [];
     for (const code of Object.keys(pm)) {
       const p = pm[code];
