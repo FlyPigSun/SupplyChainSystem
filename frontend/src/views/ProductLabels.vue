@@ -12,18 +12,18 @@
         </div>
       </div>
 
-      <el-table :data="tableData" v-loading="loading" stripe style="width: 100%">
+      <el-table :data="tableData" v-loading="loading" stripe style="width: 100%" @sort-change="handleSortChange">
         <el-table-column prop="code" label="产品编码" width="120" />
         <el-table-column prop="name" label="产品名称" width="180" />
-        <el-table-column prop="type" label="产品类型" width="100" />
-        <el-table-column prop="supplier" label="生产工厂" width="150" />
+        <el-table-column prop="type" label="产品类型" width="100" sortable="custom" />
+        <el-table-column prop="supplier" label="生产工厂" width="150" sortable="custom" />
         <el-table-column prop="ingredients" label="产品配料表" min-width="400">
           <template #default="{ row }">
             <div class="ingredients-cell">{{ row.ingredients }}</div>
           </template>
         </el-table-column>
-        <el-table-column prop="level1Count" label="一级配料数量" width="110" align="center" />
-        <el-table-column prop="totalCount" label="所有配料数量" width="110" align="center" />
+        <el-table-column prop="level1Count" label="一级配料数量" width="120" align="center" sortable="custom" />
+        <el-table-column prop="totalCount" label="所有配料数量" width="120" align="center" sortable="custom" />
       </el-table>
 
       <el-pagination
@@ -77,6 +77,7 @@ const keyword = ref('')
 const loading = ref(false)
 const tableData = ref([])
 const pagination = reactive({ page: 1, pageSize: 20, total: 0 })
+const sortState = reactive({ sortBy: '', sortOrder: 'asc' })
 
 const importDialogVisible = ref(false)
 const importLoading = ref(false)
@@ -93,7 +94,12 @@ onMounted(() => loadData())
 async function loadData() {
   loading.value = true
   try {
-    const res = await api.get('/product-labels', { params: { page: pagination.page, pageSize: pagination.pageSize, keyword: keyword.value } })
+    const params = { page: pagination.page, pageSize: pagination.pageSize, keyword: keyword.value }
+    if (sortState.sortBy) {
+      params.sortBy = sortState.sortBy
+      params.sortOrder = sortState.sortOrder
+    }
+    const res = await api.get('/product-labels', { params })
     if (res.ok) {
       tableData.value = res.data
       pagination.total = res.pagination.total
@@ -105,6 +111,17 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+function handleSortChange({ prop, order }) {
+  if (order) {
+    sortState.sortBy = prop
+    sortState.sortOrder = order === 'descending' ? 'desc' : 'asc'
+  } else {
+    sortState.sortBy = ''
+    sortState.sortOrder = 'asc'
+  }
+  loadData()
 }
 
 function handleSearch() {

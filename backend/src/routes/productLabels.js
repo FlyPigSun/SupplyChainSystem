@@ -9,7 +9,7 @@ const upload = multer({ storage: multer.memoryStorage() });
 // 查询列表
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { page = 1, pageSize = 20, keyword = '' } = req.query;
+    const { page = 1, pageSize = 20, keyword = '', sortBy = '', sortOrder = 'asc' } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
     const limit = parseInt(pageSize);
     const params = [];
@@ -18,9 +18,22 @@ router.get('/', authMiddleware, async (req, res) => {
       where = 'WHERE (product_code LIKE ? OR product_name LIKE ? OR ingredient LIKE ?)';
       params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
     }
-    // 先查产品列表
-    const productSql = `SELECT DISTINCT product_code as code, product_name as name, product_type as type, supplier
-      FROM product_labels ${where} ORDER BY product_code LIMIT ? OFFSET ?`;
+    
+    // 排序字段映射
+    const sortFieldMap = {
+      'supplier': 'supplier',
+      'type': 'product_type',
+      'level1Count': 'level1_count',
+      'totalCount': 'total_count'
+    };
+    const orderField = sortFieldMap[sortBy] || 'product_code';
+    const orderDir = sortOrder.toLowerCase() === 'desc' ? 'DESC' : 'ASC';
+    
+    // 先查产品列表（含配料数量统计）
+    const productSql = `SELECT DISTINCT product_code as code, product_name as name, product_type as type, supplier,
+      (SELECT COUNT(*) FROM product_labels pl2 WHERE pl2.product_code = pl.product_code AND pl2.level = 1) as level1_count,
+      (SELECT COUNT(*) FROM product_labels pl2 WHERE pl2.product_code = pl.product_code) as total_count
+      FROM product_labels pl ${where} ORDER BY ${orderField} ${orderDir} LIMIT ? OFFSET ?`;
     const countSql = `SELECT COUNT(DISTINCT product_code) as total FROM product_labels ${where}`;
     const [products, cnt] = await Promise.all([queryAsync(productSql, [...params, limit, offset]), getAsync(countSql, params)]);
     
@@ -53,8 +66,8 @@ router.get('/', authMiddleware, async (req, res) => {
       return {
         code: p.code, name: p.name, type: p.type, supplier: p.supplier,
         ingredients: buildIngredientStr(items),
-        level1Count: items.filter(i => i.level === 1).length,
-        totalCount: items.length
+        level1Count: p.level1_count,
+        totalCount: p.total_count
       };
     }), pagination: { page: parseInt(page), pageSize: limit, total: cnt?.total || 0 } });
   } catch (e) { res.status(500).json({ ok: false, msg: e.message }); }
