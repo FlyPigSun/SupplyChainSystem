@@ -9,7 +9,6 @@
           <el-button type="success" @click="handleImport">导入</el-button>
           <el-button type="warning" @click="handleExport">导出</el-button>
           <el-button @click="handleDownloadTemplate">下载模板</el-button>
-          <el-button type="danger" @click="handleReparse">重新解析</el-button>
         </div>
       </div>
 
@@ -55,10 +54,6 @@
           <div class="el-upload__tip">只支持 .xlsx 或 .xls 文件</div>
         </template>
       </el-upload>
-      <el-radio-group v-model="importMode" style="margin-top: 16px">
-        <el-radio value="upsert">更新模式：已有产品更新，新产品新增</el-radio>
-        <el-radio value="skip">跳过模式：已有产品跳过，只导入新产品</el-radio>
-      </el-radio-group>
       <template #footer>
         <el-button @click="importDialogVisible = false">取消</el-button>
         <el-button type="primary" @click="submitImport" :loading="importLoading">导入</el-button>
@@ -70,7 +65,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage, ElMessageBox } from 'element-plus'
+import { ElMessage } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import api from '../api'
 
@@ -82,7 +77,6 @@ const sortState = reactive({ sortBy: '', sortOrder: 'asc' })
 
 const importDialogVisible = ref(false)
 const importLoading = ref(false)
-const importMode = ref('upsert')
 const importFile = ref(null)
 const uploadRef = ref(null)
 
@@ -132,7 +126,6 @@ function handleSearch() {
 
 function handleImport() {
   importFile.value = null
-  importMode.value = 'upsert'
   uploadRef.value?.clearFiles()
   importDialogVisible.value = true
 }
@@ -150,10 +143,9 @@ async function submitImport() {
   try {
     const formData = new FormData()
     formData.append('file', importFile.value)
-    formData.append('mode', importMode.value)
     const res = await api.post('/product-labels/import', formData, { headers: { 'Content-Type': 'multipart/form-data' }, timeout: 60000 })
     if (res.ok) {
-      ElMessage.success(`导入成功：${res.created}新增，${res.updated}更新，${res.skipped}跳过`)
+      ElMessage.success(`导入成功：${res.total} 个产品`)
       if (res.errorCount > 0) ElMessage.warning(`有 ${res.errorCount} 条记录导入失败`)
       importDialogVisible.value = false
       loadData()
@@ -191,21 +183,6 @@ async function handleDownloadTemplate() {
     window.URL.revokeObjectURL(url)
   } catch (e) {
     ElMessage.error('下载失败')
-  }
-}
-
-async function handleReparse() {
-  try {
-    await ElMessageBox.confirm('将用当前解析规则重新解析所有配料数据，旧数据会被清除。确认继续？', '重新解析', { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' })
-    const res = await api.post('/product-labels/reparse')
-    if (res.ok) {
-      ElMessage.success(`重新解析完成：${res.totalProducts} 个产品，${res.totalIngredients} 条配料记录`)
-      loadData()
-    } else {
-      ElMessage.error(res.msg || '重新解析失败')
-    }
-  } catch (e) {
-    if (e !== 'cancel' && e?.toString() !== 'cancel') ElMessage.error(e.msg || '重新解析失败')
   }
 }
 </script>

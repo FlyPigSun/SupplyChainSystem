@@ -197,10 +197,11 @@ function parseIngredient(str) {
 router.post('/import', authMiddleware, adminMiddleware, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ ok: false, msg: '请上传文件' });
-    const mode = req.body.mode || 'upsert';
     const wb = XLSX.read(req.file.buffer, { type: 'buffer' });
     const rows = XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]], { defval: '' });
     if (!rows.length) return res.status(400).json({ ok: false, msg: 'Excel为空' });
+    
+    // 按产品分组，解析配料
     const pm = {};
     rows.forEach(r => {
       const code = String(r['物品编码'] || '').trim(), ing = String(r['配料'] || '').trim();
@@ -208,6 +209,7 @@ router.post('/import', authMiddleware, adminMiddleware, upload.single('file'), a
       if (!pm[code]) pm[code] = { code, name: String(r['品名'] || '').trim(), type: String(r['产品类别'] || '').trim(), supplier: String(r['生产工厂名称'] || '').trim(), ingredients: [] };
       pm[code].ingredients.push(...parseIngredient(ing));
     });
+    
     // 去重：同一产品内，(ingredient, level) 相同的只保留第一个
     for (const code of Object.keys(pm)) {
       const seen = new Set();
@@ -218,91 +220,25 @@ router.post('/import', authMiddleware, adminMiddleware, upload.single('file'), a
         return true;
       });
     }
-    let created = 0, updated = 0, skipped = 0, errors = [];
-    for (const code of Object.keys(pm)) {
+    
+    // 删除 Excel 中涵盖的产品，重新插入
+    const codes = Object.keys(pm);
+    await runAsync(`DELETE FROM product_labels WHERE product_code IN (${codes.map(() => '?').join(',')})`, codes);
+    
+    let total = 0, errors = [];
+    for (const code of codes) {
       const p = pm[code];
       try {
-        const ex = await getAsync('SELECT COUNT(*) as c FROM product_labels WHERE product_code = ?', [code]);
-        if (ex.c > 0) {
-          if (mode === 'upsert') { await runAsync('DELETE FROM product_labels WHERE product_code = ?', [code]); for (const i of p.ingredients) await runAsync('INSERT INTO product_labels (product_code,product_name,product_type,supplier,ingredient,level,parent_ingredient) VALUES (?,?,?,?,?,?,?)', [code, p.name, p.type, p.supplier, i.name, i.level, i.parent]); updated++; }
-          else skipped++;
-        } else { for (const i of p.ingredients) await runAsync('INSERT INTO product_labels (product_code,product_name,product_type,supplier,ingredient,level,parent_ingredient) VALUES (?,?,?,?,?,?,?)', [code, p.name, p.type, p.supplier, i.name, i.level, i.parent]); created++; }
+        for (const i of p.ingredients) {
+          await runAsync('INSERT INTO product_labels (product_code,product_name,product_type,supplier,ingredient,level,parent_ingredient) VALUES (?,?,?,?,?,?,?)', [code, p.name, p.type, p.supplier, i.name, i.level, i.parent]);
+        }
+        total++;
       } catch (e) { errors.push({ code, error: e.message }); }
     }
-    await runAsync('INSERT INTO operation_logs (operator,action,detail) VALUES (?,?,?)', [req.user.username, 'import_product_labels', `${created}新增,${updated}更新,${skipped}跳过,${errors.length}错误`]);
-    res.json({ ok: true, total: Object.keys(pm).length, created, updated, skipped, errorCount: errors.length, errors: errors.slice(0, 10) });
+    
+    await runAsync('INSERT INTO operation_logs (operator,action,detail) VALUES (?,?,?)', [req.user.username, 'import_product_labels', `${total}产品导入,${errors.length}错误`]);
+    res.json({ ok: true, total, errorCount: errors.length, errors: errors.slice(0, 10) });
   } catch (e) { res.status(500).json({ ok: false, msg: e.message }); }
-});
-
-// 重新解析：从现有数据重建原始配料字符串，用当前解析逻辑重新解析
-router.post('/reparse', authMiddleware, adminMiddleware, async (req, res) => {
-  try {
-    // 1. 读取所有数据，按产品分组
-    const rows = await queryAsync('SELECT product_code,product_name,product_type,supplier,ingredient,level,parent_ingredient FROM product_labels ORDER BY product_code,level,id');
-    
-    // 2. 按产品分组，重建原始配料字符串
-    const products = {};
-    for (const r of rows) {
-      if (!products[r.product_code]) {
-        products[r.product_code] = { code: r.product_code, name: r.product_name, type: r.product_type, supplier: r.supplier, level1: [], children: {} };
-      }
-      if (r.level === 1 && !r.parent_ingredient) {
-        products[r.product_code].level1.push(r.ingredient);
-      } else if (r.level === 2 && r.parent_ingredient) {
-        if (!products[r.product_code].children[r.parent_ingredient]) {
-          products[r.product_code].children[r.parent_ingredient] = [];
-        }
-        products[r.product_code].children[r.parent_ingredient].push(r.ingredient);
-      }
-    }
-    
-    // 3. 重建原始配料字符串列表
-    const parsed = {};
-    for (const [code, p] of Object.entries(products)) {
-      const ingredients = [];
-      for (const l1 of p.level1) {
-        const kids = p.children[l1];
-        if (kids && kids.length > 0) {
-          // 有子配料：parent（child1、child2）
-          ingredients.push(l1 + '（' + kids.join('、') + '）');
-        } else {
-          ingredients.push(l1);
-        }
-      }
-      parsed[code] = { ...p, ingredients };
-    }
-    
-    // 4. 清空旧数据，用新逻辑重新解析并插入
-    await runAsync('DELETE FROM product_labels');
-    let totalProducts = 0, totalIngredients = 0;
-    
-    for (const [code, p] of Object.entries(parsed)) {
-      const allParsed = [];
-      for (const ing of p.ingredients) {
-        allParsed.push(...parseIngredient(ing));
-      }
-      // 去重
-      const seen = new Set();
-      const unique = allParsed.filter(item => {
-        const key = `${item.name}|${item.level}|${item.parent}`;
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      });
-      
-      for (const i of unique) {
-        await runAsync('INSERT INTO product_labels (product_code,product_name,product_type,supplier,ingredient,level,parent_ingredient) VALUES (?,?,?,?,?,?,?)',
-          [code, p.name, p.type, p.supplier, i.name, i.level, i.parent]);
-        totalIngredients++;
-      }
-      totalProducts++;
-    }
-    
-    await runAsync('INSERT INTO operation_logs (operator,action,detail) VALUES (?,?,?)', [req.user.username, 'reparse_product_labels', `${totalProducts}产品,${totalIngredients}配料记录`]);
-    res.json({ ok: true, totalProducts, totalIngredients });
-  } catch (e) {
-    res.status(500).json({ ok: false, msg: e.message });
-  }
 });
 
 // 导出
