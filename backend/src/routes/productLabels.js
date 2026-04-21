@@ -117,7 +117,7 @@ function splitRespectingParens(str) {
 }
 
 // 解析配料层级：复配膨松剂(焦磷酸二氢二钠、碳酸氢钠) → 一级+二级
-// 支持全角/半角括号，正确处理嵌套括号，排除含量标注
+// 支持全角/半角括号，正确处理嵌套括号，排除含量标注和单一成分说明
 function parseIngredient(str) {
   const result = [];
   str = str.trim();
@@ -153,12 +153,17 @@ function parseIngredient(str) {
   }
   
   const inner = str.substring(openIdx + 1, closeIdx).trim();
-  result.push({ name: main, level: 1, parent: null });
   
-  // 判断括号内是否是含量标注（如 ≥4%、＞4%、≥10% 等）
-  const isContentMarker = /^[≥＞<≤≈≥]?\d+[%％]?$/.test(inner.replace(/\s/g, ''));
+  // 判断括号内是否是含量标注（如 ≥4%、＞4%、≥10%、添加量≥23%、≥80克/份 等）
+  const isContentMarker = /^(添加量)?[≥＞><≤≈≥]?\d+(\.\d+)?[%％克\/份]*$/.test(inner.replace(/\s/g, ''));
   
-  if (!isContentMarker) {
+  // 判断括号内是否含分隔符（顿号/逗号），有分隔符才拆分为二级配料
+  const hasSeparator = /[、,，]/.test(inner);
+  
+  if (isContentMarker || !hasSeparator) {
+    // 含量标注或单一成分说明：整体作为一级配料，不拆分
+    result.push({ name: str, level: 1, parent: null });
+  } else {
     // 按顿号分隔，但跳过括号内的分隔符（处理嵌套括号）
     const parts = splitRespectingParens(inner);
     
@@ -177,6 +182,7 @@ function parseIngredient(str) {
       }
     }
     
+    result.push({ name: main, level: 1, parent: null });
     merged.forEach(sub => {
       // 清理残留的不完整括号（如末尾的"（复合调味料"）
       const cleaned = sub.replace(/[（(][^)）]*$/, '').trim();
