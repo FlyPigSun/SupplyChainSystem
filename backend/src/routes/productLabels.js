@@ -234,6 +234,77 @@ router.post('/import', authMiddleware, adminMiddleware, upload.single('file'), a
   } catch (e) { res.status(500).json({ ok: false, msg: e.message }); }
 });
 
+// 重新解析：从现有数据重建原始配料字符串，用当前解析逻辑重新解析
+router.post('/reparse', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    // 1. 读取所有数据，按产品分组
+    const rows = await queryAsync('SELECT product_code,product_name,product_type,supplier,ingredient,level,parent_ingredient FROM product_labels ORDER BY product_code,level,id');
+    
+    // 2. 按产品分组，重建原始配料字符串
+    const products = {};
+    for (const r of rows) {
+      if (!products[r.product_code]) {
+        products[r.product_code] = { code: r.product_code, name: r.product_name, type: r.product_type, supplier: r.supplier, level1: [], children: {} };
+      }
+      if (r.level === 1 && !r.parent_ingredient) {
+        products[r.product_code].level1.push(r.ingredient);
+      } else if (r.level === 2 && r.parent_ingredient) {
+        if (!products[r.product_code].children[r.parent_ingredient]) {
+          products[r.product_code].children[r.parent_ingredient] = [];
+        }
+        products[r.product_code].children[r.parent_ingredient].push(r.ingredient);
+      }
+    }
+    
+    // 3. 重建原始配料字符串列表
+    const parsed = {};
+    for (const [code, p] of Object.entries(products)) {
+      const ingredients = [];
+      for (const l1 of p.level1) {
+        const kids = p.children[l1];
+        if (kids && kids.length > 0) {
+          // 有子配料：parent（child1、child2）
+          ingredients.push(l1 + '（' + kids.join('、') + '）');
+        } else {
+          ingredients.push(l1);
+        }
+      }
+      parsed[code] = { ...p, ingredients };
+    }
+    
+    // 4. 清空旧数据，用新逻辑重新解析并插入
+    await runAsync('DELETE FROM product_labels');
+    let totalProducts = 0, totalIngredients = 0;
+    
+    for (const [code, p] of Object.entries(parsed)) {
+      const allParsed = [];
+      for (const ing of p.ingredients) {
+        allParsed.push(...parseIngredient(ing));
+      }
+      // 去重
+      const seen = new Set();
+      const unique = allParsed.filter(item => {
+        const key = `${item.name}|${item.level}|${item.parent}`;
+        if (seen.has(key)) return false;
+        seen.add(key);
+        return true;
+      });
+      
+      for (const i of unique) {
+        await runAsync('INSERT INTO product_labels (product_code,product_name,product_type,supplier,ingredient,level,parent_ingredient) VALUES (?,?,?,?,?,?,?)',
+          [code, p.name, p.type, p.supplier, i.name, i.level, i.parent]);
+        totalIngredients++;
+      }
+      totalProducts++;
+    }
+    
+    await runAsync('INSERT INTO operation_logs (operator,action,detail) VALUES (?,?,?)', [req.user.username, 'reparse_product_labels', `${totalProducts}产品,${totalIngredients}配料记录`]);
+    res.json({ ok: true, totalProducts, totalIngredients });
+  } catch (e) {
+    res.status(500).json({ ok: false, msg: e.message });
+  }
+});
+
 // 导出
 router.get('/export', authMiddleware, adminMiddleware, async (req, res) => {
   try {

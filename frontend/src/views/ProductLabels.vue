@@ -9,6 +9,7 @@
           <el-button type="success" @click="handleImport">导入</el-button>
           <el-button type="warning" @click="handleExport">导出</el-button>
           <el-button @click="handleDownloadTemplate">下载模板</el-button>
+          <el-button type="danger" @click="handleReparse">重新解析</el-button>
         </div>
       </div>
 
@@ -69,7 +70,7 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted } from 'vue'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { UploadFilled } from '@element-plus/icons-vue'
 import api from '../api'
 
@@ -190,6 +191,21 @@ async function handleDownloadTemplate() {
     window.URL.revokeObjectURL(url)
   } catch (e) {
     ElMessage.error('下载失败')
+  }
+}
+
+async function handleReparse() {
+  try {
+    await ElMessageBox.confirm('将用当前解析规则重新解析所有配料数据，旧数据会被清除。确认继续？', '重新解析', { type: 'warning', confirmButtonText: '确认', cancelButtonText: '取消' })
+    const res = await api.post('/product-labels/reparse')
+    if (res.ok) {
+      ElMessage.success(`重新解析完成：${res.totalProducts} 个产品，${res.totalIngredients} 条配料记录`)
+      loadData()
+    } else {
+      ElMessage.error(res.msg || '重新解析失败')
+    }
+  } catch (e) {
+    if (e !== 'cancel' && e?.toString() !== 'cancel') ElMessage.error(e.msg || '重新解析失败')
   }
 }
 </script>
