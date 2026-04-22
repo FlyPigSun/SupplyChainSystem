@@ -215,6 +215,6 @@ async function handleDownloadTemplate() {
 .header { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .actions { margin-left: auto; display: flex; gap: 8px; }
 .ingredients-cell { white-space: pre-wrap; line-height: 1.6; font-size: 13px; }
-.search-highlight { color: #f56c6c; font-weight: bold; }
+:deep(.search-highlight) { color: #f56c6c; font-weight: bold; }
 @media (max-width: 768px) { .header { flex-direction: column; } .actions { margin-left: 0; width: 100%; } }
 </style>
