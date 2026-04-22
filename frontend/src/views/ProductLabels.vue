@@ -13,13 +13,21 @@
       </div>
 
       <el-table :data="tableData" v-loading="loading" stripe style="width: 100%" @sort-change="handleSortChange">
-        <el-table-column prop="code" label="产品编码" width="120" />
-        <el-table-column prop="name" label="产品名称" width="180" />
+        <el-table-column prop="code" label="产品编码" width="120">
+          <template #default="{ row }">
+            <span v-html="highlightText(row.code)"></span>
+          </template>
+        </el-table-column>
+        <el-table-column prop="name" label="产品名称" width="180">
+          <template #default="{ row }">
+            <span v-html="highlightText(row.name)"></span>
+          </template>
+        </el-table-column>
         <el-table-column prop="type" label="产品类型" width="100" sortable="custom" />
         <el-table-column prop="supplier" label="生产工厂" width="150" sortable="custom" />
         <el-table-column prop="ingredients" label="产品配料表" min-width="300">
           <template #default="{ row }">
-            <div class="ingredients-cell" v-html="row.ingredients"></div>
+            <div class="ingredients-cell" v-html="highlightHtml(row.ingredients)"></div>
           </template>
         </el-table-column>
         <el-table-column prop="level1Count" label="一级配料数量" width="130" align="center" sortable="custom" />
@@ -124,6 +132,21 @@ function handleSearch() {
   loadData()
 }
 
+function highlightText(text) {
+  if (!keyword.value || !text) return text || ''
+  const escaped = keyword.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return String(text).replace(new RegExp(escaped, 'gi'), m => `<span class="search-highlight">${m}</span>`)
+}
+
+function highlightHtml(html) {
+  if (!keyword.value || !html) return html || ''
+  const escaped = keyword.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  // 只替换 HTML 标签外的文本，避免破坏标签属性
+  return String(html).replace(new RegExp(`(?<=>|^)([^<]*?)(?=<|$)`, 'g'), (match) => {
+    return match.replace(new RegExp(escaped, 'gi'), m => `<span class="search-highlight">${m}</span>`)
+  })
+}
+
 function handleImport() {
   importFile.value = null
   uploadRef.value?.clearFiles()
@@ -192,5 +215,6 @@ async function handleDownloadTemplate() {
 .header { display: flex; gap: 12px; align-items: center; margin-bottom: 16px; flex-wrap: wrap; }
 .actions { margin-left: auto; display: flex; gap: 8px; }
 .ingredients-cell { white-space: pre-wrap; line-height: 1.6; font-size: 13px; }
+.search-highlight { color: #f56c6c; font-weight: bold; }
 @media (max-width: 768px) { .header { flex-direction: column; } .actions { margin-left: 0; width: 100%; } }
 </style>
