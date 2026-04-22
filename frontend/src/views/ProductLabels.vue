@@ -142,7 +142,7 @@ function highlightHtml(html) {
   if (!keyword.value || !html) return html || ''
   const escaped = keyword.value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
   // 只替换 HTML 标签外的文本，避免破坏标签属性
-  return String(html).replace(new RegExp(`(?<=>|^)([^<]*?)(?=<|$)`, 'g'), (match) => {
+  return String(html).replace(new RegExp(`(?<=>|^)([^<]+)(?=<|$)`, 'g'), (match) => {
     return match.replace(new RegExp(escaped, 'gi'), m => `<span class="search-highlight">${m}</span>`)
   })
 }
