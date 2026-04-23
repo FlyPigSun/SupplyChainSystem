@@ -6,7 +6,7 @@
         <el-select v-model="filterType" placeholder="产品类型" clearable style="width: 140px" @change="handleSearch">
           <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
         </el-select>
-        <el-select v-model="filterSupplier" placeholder="生产工厂" clearable style="width: 180px" @change="handleSearch">
+        <el-select v-model="filterSupplier" placeholder="生产工厂" clearable filterable style="width: 200px" @change="handleSearch">
           <el-option v-for="s in supplierOptions" :key="s" :label="s" :value="s" />
         </el-select>
         <el-button type="primary" @click="handleSearch">搜索</el-button>
