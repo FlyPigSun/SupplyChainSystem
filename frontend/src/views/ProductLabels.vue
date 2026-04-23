@@ -2,9 +2,15 @@
   <div class="product-labels-page">
     <el-card>
       <div class="header">
-        <el-input v-model="keyword" placeholder="搜索产品编码、名称或配料" clearable style="width: 300px" @keyup.enter="handleSearch" />
+        <el-input v-model="keyword" placeholder="搜索产品编码、名称或配料" clearable style="width: 240px" @keyup.enter="handleSearch" />
+        <el-select v-model="filterType" placeholder="产品类型" clearable style="width: 140px" @change="handleSearch">
+          <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
+        </el-select>
+        <el-select v-model="filterSupplier" placeholder="生产工厂" clearable style="width: 180px" @change="handleSearch">
+          <el-option v-for="s in supplierOptions" :key="s" :label="s" :value="s" />
+        </el-select>
         <el-button type="primary" @click="handleSearch">搜索</el-button>
-        <el-button @click="keyword = ''; loadData()">重置</el-button>
+        <el-button @click="handleReset">重置</el-button>
         <div class="actions" v-if="isAdmin">
           <el-button type="success" @click="handleImport">导入</el-button>
           <el-button type="warning" @click="handleExport">导出</el-button>
@@ -78,6 +84,10 @@ import { UploadFilled } from '@element-plus/icons-vue'
 import api from '../api'
 
 const keyword = ref('')
+const filterType = ref('')
+const filterSupplier = ref('')
+const typeOptions = ref([])
+const supplierOptions = ref([])
 const loading = ref(false)
 const tableData = ref([])
 const pagination = reactive({ page: 1, pageSize: 20, total: 0 })
@@ -92,12 +102,17 @@ const isAdmin = computed(() => {
   try { return JSON.parse(localStorage.getItem('user'))?.role === 'admin' } catch { return false }
 })
 
-onMounted(() => loadData())
+onMounted(() => {
+  loadFilterOptions()
+  loadData()
+})
 
 async function loadData() {
   loading.value = true
   try {
     const params = { page: pagination.page, pageSize: pagination.pageSize, keyword: keyword.value }
+    if (filterType.value) params.type = filterType.value
+    if (filterSupplier.value) params.supplier = filterSupplier.value
     if (sortState.sortBy) {
       params.sortBy = sortState.sortBy
       params.sortOrder = sortState.sortOrder
@@ -114,6 +129,26 @@ async function loadData() {
   } finally {
     loading.value = false
   }
+}
+
+async function loadFilterOptions() {
+  try {
+    const res = await api.get('/product-labels/filter-options')
+    if (res.ok) {
+      typeOptions.value = res.data.types || []
+      supplierOptions.value = res.data.suppliers || []
+    }
+  } catch (e) {
+    // 静默失败，不影响主列表加载
+  }
+}
+
+function handleReset() {
+  keyword.value = ''
+  filterType.value = ''
+  filterSupplier.value = ''
+  pagination.page = 1
+  loadData()
 }
 
 function handleSortChange({ prop, order }) {
@@ -184,7 +219,10 @@ async function submitImport() {
 
 async function handleExport() {
   try {
-    const res = await api.get('/product-labels/export', { params: { keyword: keyword.value }, responseType: 'blob' })
+    const params = { keyword: keyword.value }
+    if (filterType.value) params.type = filterType.value
+    if (filterSupplier.value) params.supplier = filterSupplier.value
+    const res = await api.get('/product-labels/export', { params, responseType: 'blob' })
     const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
     const url = window.URL.createObjectURL(blob)
     const a = document.createElement('a')

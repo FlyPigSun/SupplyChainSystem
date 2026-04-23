@@ -9,15 +9,24 @@ const upload = multer({ storage: multer.memoryStorage() });
 // 查询列表
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { page = 1, pageSize = 20, keyword = '', sortBy = '', sortOrder = 'asc' } = req.query;
+    const { page = 1, pageSize = 20, keyword = '', sortBy = '', sortOrder = 'asc', type = '', supplier = '' } = req.query;
     const offset = (parseInt(page) - 1) * parseInt(pageSize);
     const limit = parseInt(pageSize);
+    const conditions = [];
     const params = [];
-    let where = '';
     if (keyword) {
-      where = 'WHERE (product_code LIKE ? OR product_name LIKE ? OR ingredient LIKE ?)';
+      conditions.push('(product_code LIKE ? OR product_name LIKE ? OR ingredient LIKE ?)');
       params.push(`%${keyword}%`, `%${keyword}%`, `%${keyword}%`);
     }
+    if (type) {
+      conditions.push('product_type = ?');
+      params.push(type);
+    }
+    if (supplier) {
+      conditions.push('supplier = ?');
+      params.push(supplier);
+    }
+    const where = conditions.length > 0 ? 'WHERE ' + conditions.join(' AND ') : '';
     
     // 排序字段映射
     const sortFieldMap = {
@@ -80,6 +89,15 @@ router.get('/', authMiddleware, async (req, res) => {
         totalCount: p.total_count
       };
     }), pagination: { page: parseInt(page), pageSize: limit, total: cnt?.total || 0 } });
+  } catch (e) { res.status(500).json({ ok: false, msg: e.message }); }
+});
+
+// 获取筛选选项（产品类型、生产工厂）
+router.get('/filter-options', authMiddleware, async (req, res) => {
+  try {
+    const types = await queryAsync('SELECT DISTINCT product_type as value, product_type as label FROM product_labels WHERE product_type IS NOT NULL AND product_type != "" ORDER BY product_type');
+    const suppliers = await queryAsync('SELECT DISTINCT supplier as value, supplier as label FROM product_labels WHERE supplier IS NOT NULL AND supplier != "" ORDER BY supplier');
+    res.json({ ok: true, data: { types: types.map(t => t.value), suppliers: suppliers.map(s => s.value) } });
   } catch (e) { res.status(500).json({ ok: false, msg: e.message }); }
 });
 
