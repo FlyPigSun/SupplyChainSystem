@@ -48,3 +48,7 @@ coverage/
 # Package locks (optional, keep one)
 # package-lock.json
 # yarn.lock
+
+# WorkBuddy memory files (don't sync to git)
+.workbuddy/
+memory/
