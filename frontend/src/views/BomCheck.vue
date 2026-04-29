@@ -36,11 +36,7 @@
         <span v-if="loading" style="margin-left: 8px"><el-icon class="is-loading"><Loading /></el-icon></span>
       </div>
 
-      <div v-if="hasResult" class="action-bar">
-        <el-button size="small" @click="clearResult">
-          <el-icon><Delete /></el-icon> 清除核查结果
-        </el-button>
-      </div>
+
     </el-card>
 
     <!-- 人工修正对话框 -->
@@ -54,7 +50,7 @@
     <!-- 核查结果 -->
     <div v-if="hasResult" class="result-section">
       <el-alert
-        v-if="result.productName"
+        v-if="result.productName && !hasValidationErrors"
         type="info" :closable="false" class="product-alert"
       >
         <template #title>
@@ -576,7 +572,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload, Document, Delete, Loading, WarningFilled, CircleCloseFilled } from '@element-plus/icons-vue'
+import { Upload, Document, Loading, WarningFilled, CircleCloseFilled } from '@element-plus/icons-vue'
 import { bomCheckApi } from '../api'
 import CorrectionDialog from '../components/CorrectionDialog.vue'
 
@@ -719,7 +715,6 @@ const processFile = async (file) => {
       result.value = res
       if (res._validationErrors && res._validationErrors.length > 0) {
         fileInfo.value = `${file.name} 核查完成 — 模板检核未通过（${res._validationErrors.length} 项错误）`
-        ElMessage.warning(`模板检核未通过：${res._validationErrors.length} 项错误`)
       } else {
         fileInfo.value = `${file.name} 核查完成 — 品名: ${res.productName || '未识别'}`
         ElMessage.success('核查完成')
@@ -746,13 +741,7 @@ const onCorrectionSaved = async () => {
   if (lastFile.value) await processFile(lastFile.value)
 }
 
-const clearResult = () => {
-  result.value = null
-  fileInfo.value = ''
-  lastFile.value = null
-  if (fileInput.value) fileInput.value.value = ''
-  ElMessage.success('已清除核查结果')
-}
+
 </script>
 
 <style scoped>
