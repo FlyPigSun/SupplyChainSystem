@@ -28,30 +28,25 @@ router.get('/', authMiddleware, async (req, res) => {
   try {
     const { keyword, type, sales_status } = req.query;
 
-    let sql = `
-      SELECT p.*, s.name as supplier_name
-      FROM products p
-      LEFT JOIN suppliers s ON p.supplier_id = s.id
-      WHERE 1=1
-    `;
+    let sql = 'SELECT * FROM products WHERE 1=1';
     const params = [];
 
     if (keyword) {
-      sql += ' AND (p.name LIKE ? OR p.code LIKE ?)';
+      sql += ' AND (name LIKE ? OR code LIKE ?)';
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
 
     if (type) {
-      sql += ' AND p.type = ?';
+      sql += ' AND type = ?';
       params.push(type);
     }
 
     if (sales_status) {
-      sql += ' AND p.sales_status = ?';
+      sql += ' AND sales_status = ?';
       params.push(sales_status);
     }
 
-    sql += ' ORDER BY p.updated_at DESC';
+    sql += ' ORDER BY updated_at DESC';
 
     const products = await queryAsync(sql, params);
 
@@ -72,6 +67,18 @@ router.get('/', authMiddleware, async (req, res) => {
     }));
 
     res.json({ ok: true, products: productsWithMaterials });
+  } catch (err) {
+    res.status(500).json({ ok: false, msg: '查询失败' });
+  }
+});
+
+// 获取生产工厂列表（从配料表管理中的 supplier 字段去重）
+router.get('/factories', authMiddleware, async (req, res) => {
+  try {
+    const rows = await queryAsync(
+      'SELECT DISTINCT supplier as name FROM product_labels WHERE supplier IS NOT NULL AND supplier != "" ORDER BY supplier'
+    );
+    res.json({ ok: true, factories: rows.map(r => r.name) });
   } catch (err) {
     res.status(500).json({ ok: false, msg: '查询失败' });
   }
@@ -275,11 +282,11 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, type, unit, sales_status, supplier_id, materials } = req.body;
+    const { name, type, unit, sales_status, factory_name, materials } = req.body;
 
     await runAsync(
-      'UPDATE products SET name = ?, type = ?, unit = ?, sales_status = ?, supplier_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [name, type, unit, sales_status || 'on_sale', supplier_id || null, id]
+      'UPDATE products SET name = ?, type = ?, unit = ?, sales_status = ?, factory_name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [name, type, unit, sales_status || 'on_sale', factory_name || null, id]
     );
 
     // 更新原料：先删除再插入

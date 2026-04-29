@@ -53,6 +53,7 @@ export const userApi = {
 export const productApi = {
   getList: (params) => api.get('/products', { params }),
   getTypes: () => api.get('/products/types'),
+  getFactories: () => api.get('/products/factories'),
   create: (data) => api.post('/products', data),
   update: (id, data) => api.put(`/products/${id}`, data),
   delete: (id) => api.delete(`/products/${id}`),

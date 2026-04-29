@@ -171,9 +171,10 @@ function initDatabase() {
           // 忽略错误（字段已存在时会报错，不影响）
         });
         
-        // products 表扩展字段（销售状态、供应商）
+        // products 表扩展字段（销售状态、供应商/生产工厂）
         database.run(`ALTER TABLE products ADD COLUMN sales_status TEXT DEFAULT 'on_sale'`, () => {});
         database.run(`ALTER TABLE products ADD COLUMN supplier_id INTEGER`, () => {});
+        database.run(`ALTER TABLE products ADD COLUMN factory_name TEXT`, () => {});
         // 将现有产品的销售状态全部设为 on_sale
         database.run(`UPDATE products SET sales_status = 'on_sale' WHERE sales_status IS NULL OR sales_status = ''`, () => {});
 

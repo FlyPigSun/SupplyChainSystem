@@ -48,9 +48,9 @@
             <el-tag v-else type="info" size="small">已下架</el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="供应商" min-width="140" show-overflow-tooltip>
+        <el-table-column label="生产工厂" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
-            <span v-if="row.supplier_name">{{ row.supplier_name }}</span>
+            <span v-if="row.factory_name">{{ row.factory_name }}</span>
             <span v-else class="no-supplier">未指定</span>
           </template>
         </el-table-column>
@@ -194,19 +194,19 @@
             <el-radio value="off_sale">已下架</el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="供应商">
+        <el-form-item label="生产工厂">
           <el-select
-            v-model="form.supplier_id"
-            placeholder="请选择供应商"
+            v-model="form.factory_name"
+            placeholder="请选择生产工厂"
             clearable
             filterable
             style="width: 100%"
           >
             <el-option
-              v-for="s in supplierOptions"
-              :key="s.id"
-              :label="s.name"
-              :value="s.id"
+              v-for="name in factoryOptions"
+              :key="name"
+              :label="name"
+              :value="name"
             />
           </el-select>
         </el-form-item>
@@ -254,7 +254,7 @@
           <el-tag v-if="currentProduct.sales_status === 'on_sale'" type="success" size="small">销售中</el-tag>
           <el-tag v-else type="info" size="small">已下架</el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="供应商">{{ currentProduct.supplier_name || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="生产工厂">{{ currentProduct.factory_name || '-' }}</el-descriptions-item>
       </el-descriptions>
       
       <h4 style="margin: 16px 0 8px; font-size: 14px; color: #1d2129;">配方明细</h4>
@@ -280,7 +280,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Document, Loading, Plus, Delete, Search, Download } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
-import { productApi, recipeImportApi, supplierApi } from '../api'
+import { productApi, recipeImportApi } from '../api'
 
 const authStore = useAuthStore()
 const loading = ref(false)
@@ -306,11 +306,11 @@ const form = reactive({
   type: '',
   unit: '个',
   sales_status: 'on_sale',
-  supplier_id: null,
+  factory_name: '',
   materials: []
 })
 
-const supplierOptions = ref([])
+const factoryOptions = ref([])
 
 const currentProduct = ref({})
 
@@ -455,7 +455,7 @@ const editProduct = (row) => {
   form.type = row.type
   form.unit = row.unit
   form.sales_status = row.sales_status || 'on_sale'
-  form.supplier_id = row.supplier_id || null
+  form.factory_name = row.factory_name || ''
   form.materials = row.materials?.map(m => ({
     name: m.material_name,
     weight: m.weight,
@@ -489,7 +489,7 @@ const submitForm = async () => {
       type: form.type,
       unit: form.unit,
       sales_status: form.sales_status,
-      supplier_id: form.supplier_id,
+      factory_name: form.factory_name,
       materials: form.materials.filter(m => m.name && m.weight > 0)
     }
 
@@ -560,10 +560,10 @@ const exportProducts = async () => {
   }
 }
 
-const loadSuppliers = async () => {
+const loadFactories = async () => {
   try {
-    const res = await supplierApi.getList()
-    supplierOptions.value = res.suppliers || []
+    const res = await productApi.getFactories()
+    factoryOptions.value = res.factories || []
   } catch (error) {
     // 静默失败
   }
@@ -571,7 +571,7 @@ const loadSuppliers = async () => {
 
 onMounted(() => {
   loadTypes()
-  loadSuppliers()
+  loadFactories()
   loadProducts()
 })
 </script>
