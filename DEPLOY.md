@@ -52,24 +52,29 @@ npm run build
 
 ```nginx
 server {
-    listen 8080;
-    server_name localhost;
+    listen 80;
+    server_name 47.116.200.214;
 
     location /SupplyChainSystem/ {
-        proxy_pass http://127.0.0.1:8081/SupplyChainSystem/;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        alias /var/www/SupplyChainSystem/frontend/dist/;
+        index index.html;
+        try_files $uri $uri/ /SupplyChainSystem/index.html;
+
+        location ~* \.(js|css|png|jpg|jpeg|gif|ico|svg|woff|woff2|ttf|eot)$ {
+            expires -1;
+            add_header Cache-Control 'no-store, no-cache, must-revalidate';
+        }
     }
 
     location /SupplyChainSystem/api/ {
         proxy_pass http://127.0.0.1:3000/api/;
+        proxy_http_version 1.1;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection 'upgrade';
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_cache_bypass $http_upgrade;
         client_max_body_size 50m;
     }
 }

@@ -78,11 +78,8 @@ router.get('/factories', authMiddleware, async (req, res) => {
     const rows = await queryAsync(
       'SELECT DISTINCT supplier as name FROM product_labels WHERE supplier IS NOT NULL AND supplier != "" ORDER BY supplier'
     );
-    const factories = rows.map(r => r.name);
-    console.log('[factories] 返回生产工厂列表:', factories.length, '个');
-    res.json({ ok: true, factories });
+    res.json({ ok: true, factories: rows.map(r => r.name) });
   } catch (err) {
-    console.error('[factories] 查询失败:', err.message);
     res.status(500).json({ ok: false, msg: '查询失败' });
   }
 });
@@ -252,15 +249,15 @@ function insertMaterials(productId, materials) {
 // 创建产品（需管理员权限）
 router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { code, name, type, unit, sales_status, supplier_id, materials } = req.body;
+    const { code, name, type, unit, sales_status, materials } = req.body;
 
     if (!code || !name) {
       return res.status(400).json({ ok: false, msg: '产品编码和名称不能为空' });
     }
 
     const info = await runAsync(
-      'INSERT INTO products (code, name, type, unit, sales_status, supplier_id) VALUES (?, ?, ?, ?, ?, ?)',
-      [code, name, type, unit || '个', sales_status || 'on_sale', supplier_id || null]
+      'INSERT INTO products (code, name, type, unit, sales_status) VALUES (?, ?, ?, ?, ?)',
+      [code, name, type, unit || '个', sales_status || 'on_sale']
     );
 
     const productId = info.lastID;

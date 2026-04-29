@@ -519,15 +519,6 @@ const deleteProduct = async (row) => {
   }
 }
 
-// 提取产品的供应商列表（去重）
-const getSuppliers = (materials) => {
-  if (!materials || materials.length === 0) return []
-  const suppliers = materials
-    .map(m => m.supplier)
-    .filter(s => s && s.trim() !== '')
-  return [...new Set(suppliers)]
-}
-
 // 导出产品配方
 const exportProducts = async () => {
   if (products.value.length === 0) {
@@ -563,11 +554,9 @@ const exportProducts = async () => {
 const loadFactories = async () => {
   try {
     const res = await productApi.getFactories()
-    console.log('[loadFactories] API 返回:', res)
     factoryOptions.value = res.factories || []
-    console.log('[loadFactories] 选项数量:', factoryOptions.value.length)
   } catch (error) {
-    console.error('[loadFactories] 加载失败:', error)
+    // 静默失败
   }
 }
 

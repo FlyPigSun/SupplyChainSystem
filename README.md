@@ -97,12 +97,15 @@ npm run dev
 
 ```nginx
 server {
-    listen 8080;
+    listen 80;
+    server_name 47.116.200.214;
+
     location /SupplyChainSystem/ {
-        proxy_pass http://127.0.0.1:8081/SupplyChainSystem/;
-        proxy_set_header Upgrade $http_upgrade;
-        proxy_set_header Connection "upgrade";
+        alias /var/www/SupplyChainSystem/frontend/dist/;
+        index index.html;
+        try_files $uri $uri/ /SupplyChainSystem/index.html;
     }
+
     location /SupplyChainSystem/api/ {
         proxy_pass http://127.0.0.1:3000/api/;
         client_max_body_size 50m;
@@ -146,7 +149,7 @@ cd frontend && npm test
 
 SQLite3，文件位于 `backend/data/supply_chain.db`。
 
-核心表：products（产品）、product_materials（配方明细）、material_prices（原料价格）、match_corrections（匹配修正）、users（用户）、operation_logs（操作日志）、product_labels（配料表）。
+核心表：products（产品）、product_materials（配方明细）、material_prices（原料价格）、match_corrections（匹配修正）、users（用户）、operation_logs（操作日志）、product_labels（配料表）、backups（备份记录）。
 
 备份通过管理界面操作，备份文件存储在 `backend/backups/`。
 

@@ -128,14 +128,6 @@ export const calculatorApi = {
   calculate: (items) => api.post('/calculator/calculate', { items })
 }
 
-// 供应商
-export const supplierApi = {
-  getList: () => api.get('/suppliers'),
-  create: (data) => api.post('/suppliers', data),
-  update: (id, data) => api.put(`/suppliers/${id}`, data),
-  delete: (id) => api.delete(`/suppliers/${id}`)
-}
-
 // 匹配修正
 export const matchCorrectionApi = {
   save: (data) => api.post('/match-corrections', data)
