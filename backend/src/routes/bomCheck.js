@@ -318,6 +318,236 @@ function validateTemplateHeaders(rows) {
   };
 }
 
+// ========== 模板数据非空校验 ==========
+
+// 判断单元格是否为空（null, undefined, 空字符串, 公式错误）
+function isEmptyCell(val) {
+  if (val == null || val === undefined) return true;
+  const str = String(val).trim();
+  if (str === '' || str === '-' || str.startsWith('#')) return true;
+  return false;
+}
+
+// 判断单元格是否有值（非空）
+function hasValue(val) {
+  return !isEmptyCell(val);
+}
+
+// 校验模板数据非空
+// headerDetails 是 validateTemplateHeaders 返回的 details
+function validateTemplateData(rows, headerDetails) {
+  const errors = [];
+
+  // 辅助：收集某行指定列的非空字段名
+  function getNonEmptyFields(row, colMap) {
+    const nonEmpty = [];
+    for (const [field, colIdx] of Object.entries(colMap)) {
+      if (hasValue(row[colIdx])) nonEmpty.push(field);
+    }
+    return nonEmpty;
+  }
+
+  // 辅助：检查某行指定列是否全部非空
+  function checkAllNonEmpty(row, colMap, rowNum) {
+    const missing = [];
+    for (const [field, colIdx] of Object.entries(colMap)) {
+      if (isEmptyCell(row[colIdx])) missing.push(field);
+    }
+    return missing;
+  }
+
+  // 1. 产品组成数据校验
+  if (headerDetails.productComposition.found) {
+    const startIdx = headerDetails.productComposition.rowIndex + 1;
+    let endIdx = rows.length;
+    if (headerDetails.packaging.found) {
+      endIdx = headerDetails.packaging.rowIndex;
+    }
+
+    const fieldMap = {
+      '原料名': COL_NAME,
+      '重量': COL_WEIGHT,
+      '含税价': COL_TAX_PRICE,
+      '不含税价': COL_EX_PRICE,
+      '金额': COL_COST
+    };
+
+    for (let i = startIdx; i < endIdx && i < rows.length; i++) {
+      const r = rows[i];
+      if (!r) continue;
+      const cell0 = String(r[0] || '').trim();
+      const cell1 = String(r[1] || '').trim();
+      const cellName = String(r[COL_NAME] || '').trim();
+
+      // 跳过区域标题
+      if (cell0 === '单个产品包材组成') break;
+      // 跳过汇总行
+      if (['加总', '每克成本', '原料成本', '合计'].includes(cell1)) continue;
+      if (['胚体成本', '成型成本', '冷加工成本', '包材成本', '成品合计'].includes(cell0)) continue;
+      // 跳过分节行（col1 有分节名且 col2 原料名为空）
+      if (cell1 && !cellName && !['组成', '原材料', '原料'].includes(cell1)) continue;
+      // 跳过表头行
+      if (cell1 === '组成' && cell0 === '工艺') continue;
+
+      const nonEmpty = getNonEmptyFields(r, fieldMap);
+      // 排除仅金额为0的空行（模板预留行常见情况）
+      const isEmptyRow = nonEmpty.length === 0 || (nonEmpty.length === 1 && nonEmpty[0] === '金额' && (parseFloat(r[COL_COST]) || 0) === 0);
+      if (!isEmptyRow) {
+        // 这一行有数据，检查所有字段是否都不为空
+        const missing = checkAllNonEmpty(r, fieldMap, i);
+        if (missing.length > 0) {
+          errors.push(`产品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+        }
+      }
+    }
+  }
+
+  // 2. 单个产品包材组成数据校验
+  if (headerDetails.packaging.found) {
+    const startIdx = headerDetails.packaging.rowIndex + 1;
+    let endIdx = rows.length;
+    if (headerDetails.singleProduct.found) {
+      endIdx = headerDetails.singleProduct.rowIndex;
+    }
+
+    const fieldMap = {
+      '包材名称': 0,
+      '数量': COL_WEIGHT,
+      '含税单价': COL_TAX_PRICE,
+      '不含税单价': COL_EX_PRICE,
+      '金额': COL_COST,
+      '百分比': COL_PERCENT
+    };
+
+    for (let i = startIdx; i < endIdx && i < rows.length; i++) {
+      const r = rows[i];
+      if (!r) continue;
+      const cell0 = String(r[0] || '').trim();
+      // 跳过区域标题、汇总行
+      if (cell0 === '单个产品包材成本' || cell0 === '单个成品组成') break;
+      if (cell0 === '包材名称') continue; // 表头行
+
+      const nonEmpty = getNonEmptyFields(r, fieldMap);
+      if (nonEmpty.length > 0) {
+        const missing = checkAllNonEmpty(r, fieldMap, i);
+        if (missing.length > 0) {
+          errors.push(`包材组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+        }
+      }
+    }
+  }
+
+  // 3. 单个成品组成数据校验
+  if (headerDetails.singleProduct.found) {
+    const startIdx = headerDetails.singleProduct.rowIndex + 1;
+    let endIdx = rows.length;
+    if (headerDetails.bomCost.found) {
+      endIdx = headerDetails.bomCost.rowIndex;
+    }
+
+    const fieldMap = {
+      '工艺分项': 0,
+      '组成': COL_WEIGHT,
+      '不含税单价': COL_EX_PRICE,
+      '金额': COL_COST,
+      '百分比': COL_PERCENT
+    };
+
+    for (let i = startIdx; i < endIdx && i < rows.length; i++) {
+      const r = rows[i];
+      if (!r) continue;
+      const cell0 = String(r[0] || '').trim();
+      // 跳过区域标题
+      if (cell0 === 'BOM成本合计') break;
+      if (cell0 === '工艺分项') continue; // 表头行
+
+      const nonEmpty = getNonEmptyFields(r, fieldMap);
+      if (nonEmpty.length > 0) {
+        const missing = checkAllNonEmpty(r, fieldMap, i);
+        if (missing.length > 0) {
+          errors.push(`单个成品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+        }
+      }
+    }
+  }
+
+  // 4. BOM成本合计特定行校验
+  if (headerDetails.bomCost.found) {
+    const startIdx = headerDetails.bomCost.rowIndex + 1;
+    let endIdx = rows.length;
+    // 找到产品名称行作为结束
+    for (let i = startIdx; i < rows.length; i++) {
+      const cell0 = String(rows[i][0] || '').trim();
+      if (cell0.includes('产品名称')) {
+        endIdx = i;
+        break;
+      }
+    }
+
+    // 定义必填项及其匹配关键词（支持模糊匹配）
+    const requiredItems = [
+      { name: '成品合计', keywords: ['成品合计'] },
+      { name: '人工费用', keywords: ['人工费用', '人工'] },
+      { name: '水电费用', keywords: ['水电费用', '水电'] },
+      { name: '物流费用', keywords: ['物流费用', '物流'] },
+      { name: '税收', keywords: ['税收', '税'] },
+      { name: '折旧费用', keywords: ['折旧费用', '折旧'] },
+      { name: '管理费用', keywords: ['管理费用', '管理'] },
+      { name: '利润费用', keywords: ['利润费用', '利润'] },
+      { name: '房租费用', keywords: ['房租费用', '房租'] },
+      { name: '合计成本', keywords: ['合计成本', '成本合计'] }
+    ];
+
+    for (let i = startIdx; i < endIdx && i < rows.length; i++) {
+      const r = rows[i];
+      if (!r) continue;
+      const itemName = String(r[0] || '').trim();
+      if (!itemName || itemName === '项目') continue;
+
+      const matchedItem = requiredItems.find(req => req.keywords.some(kw => itemName.includes(kw)));
+      if (matchedItem) {
+        const missing = [];
+        if (isEmptyCell(r[COL_COST])) missing.push('金额');
+        if (isEmptyCell(r[COL_PERCENT])) missing.push('百分比');
+        if (missing.length > 0) {
+          errors.push(`BOM成本合计「${matchedItem.name}」${missing.join('、')}不能为空`);
+        }
+      }
+    }
+  }
+
+  // 5. 产品信息校验（产品名称、出成率、实际出厂价、净含量）
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r) continue;
+    const cell0 = String(r[0] || '').trim();
+    if (cell0.includes('产品名称')) {
+      // 产品名称在 col2
+      if (isEmptyCell(r[COL_NAME])) {
+        errors.push('产品名称不能为空');
+      }
+      // 出成率在 col5
+      if (isEmptyCell(r[COL_TAX_PRICE])) {
+        errors.push('出成率不能为空');
+      }
+      // 实际出厂价在 col7
+      if (isEmptyCell(r[COL_COST])) {
+        errors.push('实际出厂价不能为空');
+      }
+      // 净含量在 col9
+      if (isEmptyCell(r[9])) {
+        errors.push('净含量不能为空');
+      }
+      break;
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors
+  };
+}
+
 function parseAuditSheet(rows) {
   const materials = [];
   const costBreakdown = {};  // 成本组成：{ 食材成本: 2.735629, 人工费用: 0.6712, ... }
@@ -507,6 +737,38 @@ async function runBomCheck(rows, fileName) {
       costItems: [],
       costWarnings: headerValidation.errors.map(msg => ({ type: 'error', message: msg })),
       _validationErrors: headerValidation.errors,
+      _validationDetails: headerValidation.details
+    };
+  }
+
+  // 表头校验通过后，进行数据非空校验
+  const dataValidation = validateTemplateData(rows, headerValidation.details);
+  if (!dataValidation.valid) {
+    return {
+      productName: fileName,
+      productWeight: 0,
+      yieldRate: null,
+      factoryPrice: null,
+      netWeight: null,
+      matchedProductCount: 0,
+      matchedProducts: [],
+      auditMaterialCount: 0,
+      auditSections: [],
+      systemMaterialCount: 0,
+      formulaDiffCount: 0,
+      priceDiffCount: 0,
+      fuzzyCount: 0,
+      flavorDiffCount: 0,
+      noPriceCount: 0,
+      correctedCount: 0,
+      formulaDiffs: [],
+      priceDiffs: [],
+      costBreakdown: {},
+      costRows: [],
+      totalPrice: 0,
+      costItems: [],
+      costWarnings: dataValidation.errors.map(msg => ({ type: 'error', message: msg })),
+      _validationErrors: dataValidation.errors,
       _validationDetails: headerValidation.details
     };
   }
