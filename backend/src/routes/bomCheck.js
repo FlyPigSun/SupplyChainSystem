@@ -153,8 +153,6 @@ function parseAuditSheet(rows) {
   let inPackagingSection = false; // 是否进入包材区域
   let skipSection = false;   // 是否跳过当前区域（如单个成品组成）
 
-  const sectionNames = ['酥皮', '面团', '馅料', '装饰', '表面酱料', '注馅'];
-
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const cell0 = String(r[0] || '').trim();
@@ -192,8 +190,9 @@ function parseAuditSheet(rows) {
       continue;
     }
 
-    // 识别分节（新模板：分节在 col1，工艺大类在 col0）
-    if (sectionNames.includes(cell1)) {
+    // 识别分节（动态：col1 有值、col2 为空、不是汇总/表头关键字）
+    const isSummaryKeyword = ['合计', '每克成本', '组成'].includes(cell1);
+    if (cell1 && !cellName && !isSummaryKeyword && !inPackagingSection && !inCostSection && !skipSection) {
       currentSection = cell1;
       inPackagingSection = false;
       inCostSection = false;
