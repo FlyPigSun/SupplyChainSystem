@@ -24,8 +24,8 @@
         </el-form-item>
         <el-form-item label="销售状态">
           <el-select v-model="searchForm.sales_status" placeholder="全部状态" clearable style="width: 140px">
-            <el-option label="销售中" value="on_sale" />
-            <el-option label="已下架" value="off_sale" />
+            <el-option label="在售" value="on_sale" />
+            <el-option label="下架" value="off_sale" />
           </el-select>
         </el-form-item>
         <el-form-item>
@@ -44,8 +44,8 @@
         <el-table-column prop="type" label="类型" width="120" />
         <el-table-column label="销售状态" width="90" align="center">
           <template #default="{ row }">
-            <el-tag v-if="row.sales_status === 'on_sale'" type="success" size="small">销售中</el-tag>
-            <el-tag v-else type="info" size="small">已下架</el-tag>
+            <el-tag v-if="row.sales_status === 'on_sale'" type="success" size="small">在售</el-tag>
+            <el-tag v-else type="info" size="small">下架</el-tag>
           </template>
         </el-table-column>
         <el-table-column label="生产工厂" min-width="140" show-overflow-tooltip>
@@ -190,8 +190,8 @@
         </el-form-item>
         <el-form-item label="销售状态">
           <el-radio-group v-model="form.sales_status">
-            <el-radio value="on_sale">销售中</el-radio>
-            <el-radio value="off_sale">已下架</el-radio>
+            <el-radio value="on_sale">在售</el-radio>
+            <el-radio value="off_sale">下架</el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="生产工厂">
@@ -251,8 +251,8 @@
         <el-descriptions-item label="类型">{{ currentProduct.type }}</el-descriptions-item>
         <el-descriptions-item label="单位">{{ currentProduct.unit }}</el-descriptions-item>
         <el-descriptions-item label="销售状态">
-          <el-tag v-if="currentProduct.sales_status === 'on_sale'" type="success" size="small">销售中</el-tag>
-          <el-tag v-else type="info" size="small">已下架</el-tag>
+          <el-tag v-if="currentProduct.sales_status === 'on_sale'" type="success" size="small">在售</el-tag>
+          <el-tag v-else type="info" size="small">下架</el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="生产工厂">{{ currentProduct.factory_name || '-' }}</el-descriptions-item>
       </el-descriptions>
