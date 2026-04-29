@@ -338,6 +338,95 @@ function hasValue(val) {
 function validateTemplateData(rows, headerDetails) {
   const errors = [];
 
+  // ========== 合法性校验辅助函数 ==========
+
+  // 解析数字（支持字符串数字、百分比等）
+  function parseNumberValue(val) {
+    if (val == null || val === undefined) return null;
+    const str = String(val).trim();
+    if (str === '' || str === '-' || str.startsWith('#')) return null;
+    // 去掉可能的分隔符（如千分位逗号）
+    const cleaned = str.replace(/,/g, '');
+    const n = parseFloat(cleaned);
+    return isNaN(n) ? null : n;
+  }
+
+  // 解析百分比（支持 "95%"、0.95、95 等格式）
+  function parsePercentValue(val) {
+    if (val == null || val === undefined) return null;
+    const str = String(val).trim();
+    if (str === '' || str === '-' || str.startsWith('#')) return null;
+    // 去掉可能的分隔符
+    const cleaned = str.replace(/,/g, '');
+    // 含百分号
+    if (cleaned.includes('%')) {
+      const numStr = cleaned.replace(/%/g, '');
+      const n = parseFloat(numStr);
+      return isNaN(n) ? null : n;
+    }
+    // 纯数字（可能是小数 0.95 或整数 95）
+    const n = parseFloat(cleaned);
+    if (isNaN(n)) return null;
+    // 如果值在 0~1 之间，可能是小数形式的百分比，转换为百分数
+    if (n > 0 && n < 1) return parseFloat((n * 100).toFixed(4));
+    return n;
+  }
+
+  // 检查数值范围
+  function checkRange(val, min, max, fieldName, rowNum, prefix) {
+    const n = parseNumberValue(val);
+    if (n === null) return false; // 为空，不在这里报（由非空校验处理）
+    if (min !== null && n < min) {
+      errors.push(`${prefix}第${rowNum}行「${fieldName}」必须 ≥ ${min}，当前值为 ${n}`);
+      return false;
+    }
+    if (max !== null && n > max) {
+      errors.push(`${prefix}第${rowNum}行「${fieldName}」必须 ≤ ${max}，当前值为 ${n}`);
+      return false;
+    }
+    return true;
+  }
+
+  // 检查金额公式：金额 ≈ 重量(g) × 含税单价(元/kg) / 1000
+  function checkAmountFormula(weight, taxPrice, amount, rowNum, prefix) {
+    const w = parseNumberValue(weight);
+    const p = parseNumberValue(taxPrice);
+    const a = parseNumberValue(amount);
+    if (w === null || p === null || a === null) return; // 有空值，不检查公式
+
+    // 重量必须 > 0 才能检查公式
+    if (w <= 0) return;
+
+    // 金额为0时跳过公式校验（用户允许金额为0，如免费样品）
+    if (a === 0) return;
+
+    const expected = w * p / 1000;
+    const absDiff = Math.abs(a - expected);
+    const relDiff = expected !== 0 ? absDiff / Math.abs(expected) : (a !== 0 ? 1 : 0);
+
+    // 允许微小误差：绝对误差 ≤ 0.05 或 相对误差 ≤ 5%
+    const ABS_TOLERANCE = 0.05;
+    const REL_TOLERANCE = 0.05;
+
+    if (absDiff > ABS_TOLERANCE && relDiff > REL_TOLERANCE) {
+      errors.push(
+        `${prefix}第${rowNum}行「金额」公式异常：金额=${a.toFixed(4)}，但 重量×含税单价/1000=${expected.toFixed(4)}，` +
+        `相差 ${absDiff.toFixed(4)}（${(relDiff * 100).toFixed(1)}%）`
+      );
+    }
+  }
+
+  // 检查百分比范围
+  function checkPercentRange(val, fieldName, rowNum, prefix) {
+    const n = parsePercentValue(val);
+    if (n === null) return false;
+    if (n < 0 || n > 100) {
+      errors.push(`${prefix}第${rowNum}行「${fieldName}」百分比必须在 0~100 之间，当前值为 ${n}`);
+      return false;
+    }
+    return true;
+  }
+
   // 辅助：收集某行指定列的非空字段名
   function getNonEmptyFields(row, colMap) {
     const nonEmpty = [];
@@ -348,7 +437,7 @@ function validateTemplateData(rows, headerDetails) {
   }
 
   // 辅助：检查某行指定列是否全部非空
-  function checkAllNonEmpty(row, colMap, rowNum) {
+  function checkAllNonEmpty(row, colMap) {
     const missing = [];
     for (const [field, colIdx] of Object.entries(colMap)) {
       if (isEmptyCell(row[colIdx])) missing.push(field);
@@ -356,7 +445,7 @@ function validateTemplateData(rows, headerDetails) {
     return missing;
   }
 
-  // 1. 产品组成数据校验
+  // ========== 1. 产品组成数据校验 ==========
   if (headerDetails.productComposition.found) {
     const startIdx = headerDetails.productComposition.rowIndex + 1;
     let endIdx = rows.length;
@@ -392,17 +481,25 @@ function validateTemplateData(rows, headerDetails) {
       const nonEmpty = getNonEmptyFields(r, fieldMap);
       // 排除仅金额为0的空行（模板预留行常见情况）
       const isEmptyRow = nonEmpty.length === 0 || (nonEmpty.length === 1 && nonEmpty[0] === '金额' && (parseFloat(r[COL_COST]) || 0) === 0);
-      if (!isEmptyRow) {
-        // 这一行有数据，检查所有字段是否都不为空
-        const missing = checkAllNonEmpty(r, fieldMap, i);
-        if (missing.length > 0) {
-          errors.push(`产品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
-        }
+      if (isEmptyRow) continue;
+
+      // (a) 非空校验
+      const missing = checkAllNonEmpty(r, fieldMap);
+      if (missing.length > 0) {
+        errors.push(`产品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+        continue; // 有空值，跳过合法性校验
       }
+
+      // (b) 合法性校验
+      checkRange(r[COL_WEIGHT], 0, null, '重量', i + 1, '产品组成'); // >0
+      checkRange(r[COL_TAX_PRICE], 0, null, '含税单价', i + 1, '产品组成'); // ≥0
+      checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '产品组成'); // ≥0
+      // 金额公式校验
+      checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '产品组成');
     }
   }
 
-  // 2. 单个产品包材组成数据校验
+  // ========== 2. 单个产品包材组成数据校验 ==========
   if (headerDetails.packaging.found) {
     const startIdx = headerDetails.packaging.rowIndex + 1;
     let endIdx = rows.length;
@@ -428,16 +525,26 @@ function validateTemplateData(rows, headerDetails) {
       if (cell0 === '包材名称') continue; // 表头行
 
       const nonEmpty = getNonEmptyFields(r, fieldMap);
-      if (nonEmpty.length > 0) {
-        const missing = checkAllNonEmpty(r, fieldMap, i);
-        if (missing.length > 0) {
-          errors.push(`包材组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
-        }
+      if (nonEmpty.length === 0) continue;
+
+      // (a) 非空校验
+      const missing = checkAllNonEmpty(r, fieldMap);
+      if (missing.length > 0) {
+        errors.push(`包材组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+        continue;
       }
+
+      // (b) 合法性校验
+      checkRange(r[COL_WEIGHT], 0, null, '数量', i + 1, '包材组成'); // >0
+      checkRange(r[COL_TAX_PRICE], 0, null, '含税单价', i + 1, '包材组成'); // ≥0
+      checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '包材组成'); // ≥0
+      checkPercentRange(r[COL_PERCENT], '百分比', i + 1, '包材组成');
+      // 金额公式校验（包材也用同样的公式：数量 × 含税单价 / 1000）
+      checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '包材组成');
     }
   }
 
-  // 3. 单个成品组成数据校验
+  // ========== 3. 单个成品组成数据校验 ==========
   if (headerDetails.singleProduct.found) {
     const startIdx = headerDetails.singleProduct.rowIndex + 1;
     let endIdx = rows.length;
@@ -462,16 +569,23 @@ function validateTemplateData(rows, headerDetails) {
       if (cell0 === '工艺分项') continue; // 表头行
 
       const nonEmpty = getNonEmptyFields(r, fieldMap);
-      if (nonEmpty.length > 0) {
-        const missing = checkAllNonEmpty(r, fieldMap, i);
-        if (missing.length > 0) {
-          errors.push(`单个成品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
-        }
+      if (nonEmpty.length === 0) continue;
+
+      // (a) 非空校验
+      const missing = checkAllNonEmpty(r, fieldMap);
+      if (missing.length > 0) {
+        errors.push(`单个成品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+        continue;
       }
+
+      // (b) 合法性校验
+      checkRange(r[COL_WEIGHT], 0, null, '组成', i + 1, '单个成品组成'); // >0
+      checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '单个成品组成'); // ≥0
+      checkPercentRange(r[COL_PERCENT], '百分比', i + 1, '单个成品组成');
     }
   }
 
-  // 4. BOM成本合计特定行校验
+  // ========== 4. BOM成本合计特定行校验 ==========
   if (headerDetails.bomCost.found) {
     const startIdx = headerDetails.bomCost.rowIndex + 1;
     let endIdx = rows.length;
@@ -511,32 +625,48 @@ function validateTemplateData(rows, headerDetails) {
         if (isEmptyCell(r[COL_PERCENT])) missing.push('百分比');
         if (missing.length > 0) {
           errors.push(`BOM成本合计「${matchedItem.name}」${missing.join('、')}不能为空`);
+          continue;
         }
+
+        // 合法性校验
+        checkRange(r[COL_COST], null, null, '金额', i + 1, 'BOM成本合计'); // 仅检查是否为数字
+        checkPercentRange(r[COL_PERCENT], '百分比', i + 1, 'BOM成本合计');
       }
     }
   }
 
-  // 5. 产品信息校验（产品名称、出成率、实际出厂价、净含量）
+  // ========== 5. 产品信息校验 ==========
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     if (!r) continue;
     const cell0 = String(r[0] || '').trim();
     if (cell0.includes('产品名称')) {
-      // 产品名称在 col2
+      // (a) 非空校验
       if (isEmptyCell(r[COL_NAME])) {
         errors.push('产品名称不能为空');
       }
-      // 出成率在 col5
       if (isEmptyCell(r[COL_TAX_PRICE])) {
         errors.push('出成率不能为空');
       }
-      // 实际出厂价在 col7
       if (isEmptyCell(r[COL_COST])) {
         errors.push('实际出厂价不能为空');
       }
-      // 净含量在 col9
       if (isEmptyCell(r[9])) {
         errors.push('净含量不能为空');
+      }
+
+      // (b) 合法性校验
+      const yieldRateVal = parsePercentValue(r[COL_TAX_PRICE]);
+      if (yieldRateVal !== null && (yieldRateVal < 0 || yieldRateVal > 100)) {
+        errors.push(`出成率必须在 0~100 之间，当前值为 ${yieldRateVal}`);
+      }
+      const factoryPriceVal = parseNumberValue(r[COL_COST]);
+      if (factoryPriceVal !== null && factoryPriceVal < 0) {
+        errors.push(`实际出厂价必须 ≥ 0，当前值为 ${factoryPriceVal}`);
+      }
+      const netWeightVal = parseNumberValue(r[9]);
+      if (netWeightVal !== null && netWeightVal <= 0) {
+        errors.push(`净含量必须 > 0，当前值为 ${netWeightVal}`);
       }
       break;
     }
