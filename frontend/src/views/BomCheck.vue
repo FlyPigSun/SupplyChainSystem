@@ -65,43 +65,89 @@
           <span v-if="result.netWeight !== null && result.netWeight !== undefined"> | 净含量：{{ result.netWeight }}g</span>
         </template>
       </el-alert>
-      <!-- 模板校验错误提示 -->
+      <!-- 编码问题警告 -->
       <el-alert
-        v-if="result._validationErrors && result._validationErrors.length > 0"
-        type="error" :closable="false" class="product-alert validation-alert" show-icon
-      >
-        <template #title>
-          <div class="validation-title">模板格式错误，请修正后重新上传</div>
-        </template>
-        <div class="validation-list">
-          <div v-for="(err, idx) in result._validationErrors" :key="idx" class="validation-item">
-            {{ idx + 1 }}. {{ err }}
-          </div>
-        </div>
-      </el-alert>
-
-      <el-alert 
-        v-if="result.matchedProductCount === 0 && !(result._validationErrors?.length > 0)" 
-        title="未匹配到系统产品，仅显示价格核查" 
-        type="warning" :closable="false" class="product-alert"
-      />
-      <el-alert 
-        v-if="(result.fuzzyCount > 0 || result.flavorDiffCount > 0) && !(result._validationErrors?.length > 0)" 
-        :title="matchWarningTitle"
+        v-if="result._encodingIssue"
+        :title="`品名编码异常，已自动从文件名提取为「${result.productName}」`"
         type="warning" :closable="false" class="product-alert" show-icon
       />
-      <el-alert
-        v-if="result.correctedCount > 0 && !(result._validationErrors?.length > 0)"
-        :title="`${result.correctedCount} 项原料已应用人工修正匹配，标有「已修正」标签`"
-        type="success" :closable="false" class="product-alert" show-icon
-      />
-      <el-alert
-        v-if="result.costWarnings && result.costWarnings.length > 0 && !(result._validationErrors?.length > 0)"
-        :title="`成本占比异常：${result.costWarnings.map(w => w.label + ' ' + (w.percent !== null ? w.percent + '%' : '缺失')).join('、')}`"
-        type="error" :closable="false" class="product-alert" show-icon
-      />
 
-      <el-row :gutter="12" class="summary-row">
+      <!-- 模板校验错误状态页 -->
+      <template v-if="hasValidationErrors">
+        <el-card shadow="never" class="result-card validation-status-card">
+          <div class="validation-status-header">
+            <el-icon :size="32" color="#f56c6c"><CircleCloseFilled /></el-icon>
+            <div class="validation-status-title">模板检核未通过</div>
+            <div class="validation-status-sub">共 {{ result._validationErrors.length }} 项错误，请修正后重新上传</div>
+          </div>
+
+          <!-- 区域状态概览 -->
+          <div v-if="validationStats.length > 0" class="validation-section-overview">
+            <div
+              v-for="sec in validationStats"
+              :key="sec.key"
+              class="validation-section-pill"
+              :class="{ 'has-error': sec.count > 0 }"
+            >
+              <span class="section-pill-label">{{ sec.label }}</span>
+              <el-tag :type="sec.count > 0 ? 'danger' : 'success'" size="small">
+                {{ sec.count > 0 ? sec.count + ' 项错误' : '正常' }}
+              </el-tag>
+            </div>
+          </div>
+
+          <!-- 按区域分组的错误详情 -->
+          <el-collapse v-model="activeValidationGroups" class="validation-collapse">
+            <el-collapse-item
+              v-for="group in groupedValidationErrors"
+              :key="group.key"
+              :name="group.key"
+            >
+              <template #title>
+                <div class="collapse-title">
+                  <span class="collapse-label">{{ group.label }}</span>
+                  <el-tag type="danger" size="small">{{ group.errors.length }}</el-tag>
+                </div>
+              </template>
+              <div class="validation-group-list">
+                <div
+                  v-for="(err, idx) in group.errors"
+                  :key="idx"
+                  class="validation-group-item"
+                >
+                  <span class="item-number">{{ idx + 1 }}</span>
+                  <span class="item-text">{{ err }}</span>
+                </div>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </el-card>
+      </template>
+
+      <!-- 正常核查结果展示 -->
+      <template v-else>
+        <el-alert 
+          v-if="result.matchedProductCount === 0" 
+          title="未匹配到系统产品，仅显示价格核查" 
+          type="warning" :closable="false" class="product-alert"
+        />
+        <el-alert 
+          v-if="result.fuzzyCount > 0 || result.flavorDiffCount > 0" 
+          :title="matchWarningTitle"
+          type="warning" :closable="false" class="product-alert" show-icon
+        />
+        <el-alert
+          v-if="result.correctedCount > 0"
+          :title="`${result.correctedCount} 项原料已应用人工修正匹配，标有「已修正」标签`"
+          type="success" :closable="false" class="product-alert" show-icon
+        />
+        <el-alert
+          v-if="result.costWarnings && result.costWarnings.length > 0"
+          :title="`成本占比异常：${result.costWarnings.map(w => w.label + ' ' + (w.percent !== null ? w.percent + '%' : '缺失')).join('、')}`"
+          type="error" :closable="false" class="product-alert" show-icon
+        />
+
+        <el-row :gutter="12" class="summary-row">
         <el-col :xs="12" :sm="6">
           <div class="summary-item">
             <div class="summary-label">匹配产品</div>
@@ -522,6 +568,7 @@
         
         <el-empty v-else description="无价格核查数据" :image-size="60" />
       </el-card>
+      </template>
     </div>
   </div>
 </template>
@@ -529,7 +576,7 @@
 <script setup>
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload, Document, Delete, Loading, WarningFilled } from '@element-plus/icons-vue'
+import { Upload, Document, Delete, Loading, WarningFilled, CircleCloseFilled } from '@element-plus/icons-vue'
 import { bomCheckApi } from '../api'
 import CorrectionDialog from '../components/CorrectionDialog.vue'
 
@@ -560,6 +607,61 @@ onUnmounted(() => {
 })
 
 const hasResult = computed(() => result.value !== null)
+
+const hasValidationErrors = computed(() => {
+  return result.value?._validationErrors && result.value._validationErrors.length > 0
+})
+
+// 按区域分组的错误
+const groupedValidationErrors = computed(() => {
+  if (!result.value?._validationErrors) return []
+  const sections = [
+    { key: 'header', label: '表头结构', keywords: ['未找到', '表头', '区域'] },
+    { key: 'productComposition', label: '产品组成', keywords: ['产品组成'] },
+    { key: 'packaging', label: '包材组成', keywords: ['包材组成', '包材名称'] },
+    { key: 'singleProduct', label: '单个成品组成', keywords: ['单个成品组成'] },
+    { key: 'bomCost', label: 'BOM成本合计', keywords: ['BOM成本合计', '成品合计', '人工费用', '水电费用', '物流费用', '税收', '折旧费用', '管理费用', '利润费用', '房租费用', '合计成本'] },
+    { key: 'productInfo', label: '产品信息', keywords: ['产品名称', '出成率', '实际出厂价', '净含量'] }
+  ]
+  const groups = {}
+  sections.forEach(s => { groups[s.key] = { key: s.key, label: s.label, errors: [] } })
+  groups['other'] = { key: 'other', label: '其他', errors: [] }
+
+  result.value._validationErrors.forEach(err => {
+    let matched = false
+    for (const sec of sections) {
+      if (sec.keywords.some(kw => err.includes(kw))) {
+        groups[sec.key].errors.push(err)
+        matched = true
+        break
+      }
+    }
+    if (!matched) groups['other'].errors.push(err)
+  })
+
+  return Object.values(groups).filter(g => g.errors.length > 0)
+})
+
+// 区域状态统计（用于概览展示）
+const validationStats = computed(() => {
+  const allSections = [
+    { key: 'productComposition', label: '产品组成' },
+    { key: 'packaging', label: '包材组成' },
+    { key: 'singleProduct', label: '单个成品组成' },
+    { key: 'bomCost', label: 'BOM成本合计' },
+    { key: 'productInfo', label: '产品信息' }
+  ]
+  const groups = groupedValidationErrors.value
+  return allSections.map(sec => {
+    const group = groups.find(g => g.key === sec.key)
+    return { ...sec, count: group ? group.errors.length : 0 }
+  })
+})
+
+// 默认展开所有有错误的区域
+const activeValidationGroups = computed(() => {
+  return groupedValidationErrors.value.map(g => g.key)
+})
 
 const totalPrice = computed(() => result.value?.totalPrice || 0)
 
@@ -615,8 +717,13 @@ const processFile = async (file) => {
     const res = await bomCheckApi.check(formData)
     if (res.ok) {
       result.value = res
-      fileInfo.value = `${file.name} 核查完成 — 品名: ${res.productName || '未识别'}`
-      ElMessage.success('核查完成')
+      if (res._validationErrors && res._validationErrors.length > 0) {
+        fileInfo.value = `${file.name} 核查完成 — 模板检核未通过（${res._validationErrors.length} 项错误）`
+        ElMessage.warning(`模板检核未通过：${res._validationErrors.length} 项错误`)
+      } else {
+        fileInfo.value = `${file.name} 核查完成 — 品名: ${res.productName || '未识别'}`
+        ElMessage.success('核查完成')
+      }
     } else {
       ElMessage.error(res.msg || '核查失败')
       fileInfo.value = ''
@@ -668,6 +775,33 @@ const clearResult = () => {
 .validation-title { font-weight: 600; margin-bottom: 4px; }
 .validation-list { margin-top: 6px; }
 .validation-item { font-size: 13px; line-height: 1.8; color: #f56c6c; }
+
+/* 校验状态卡片 */
+.validation-status-card { border: 1px solid #fde2e2; background: #fffafa; }
+.validation-status-header { text-align: center; padding: 24px 0 16px; }
+.validation-status-title { font-size: 18px; font-weight: 600; color: #f56c6c; margin-top: 10px; }
+.validation-status-sub { font-size: 13px; color: #909399; margin-top: 6px; }
+
+/* 区域概览 pills */
+.validation-section-overview { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 16px; background: #fff; border-radius: 8px; margin: 16px 0; border: 1px solid #f0f0f0; }
+.validation-section-pill { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f6ffed; border-radius: 6px; border: 1px solid #b7eb8f; }
+.validation-section-pill.has-error { background: #fff2f0; border-color: #ffccc7; }
+.section-pill-label { font-size: 13px; color: #1d2129; font-weight: 500; }
+
+/* 折叠面板 */
+.validation-collapse { border: none; }
+.validation-collapse :deep(.el-collapse-item__header) { padding: 0 16px; background: #fff; border-radius: 6px; border: 1px solid #e5e6eb; margin-bottom: 8px; height: 44px; }
+.validation-collapse :deep(.el-collapse-item__wrap) { border: none; }
+.validation-collapse :deep(.el-collapse-item__content) { padding: 0 0 16px; }
+.collapse-title { display: flex; align-items: center; gap: 10px; flex: 1; }
+.collapse-label { font-size: 14px; font-weight: 600; color: #1d2129; }
+
+/* 分组错误列表 */
+.validation-group-list { padding: 12px 16px; background: #fff; border-radius: 6px; border: 1px solid #f0f0f0; }
+.validation-group-item { display: flex; align-items: flex-start; gap: 10px; padding: 8px 0; border-bottom: 1px dashed #f2f3f5; font-size: 13px; line-height: 1.6; color: #f56c6c; }
+.validation-group-item:last-child { border-bottom: none; }
+.item-number { flex-shrink: 0; width: 20px; height: 20px; display: flex; align-items: center; justify-content: center; background: #fef0f0; border-radius: 50%; font-size: 11px; font-weight: 600; color: #f56c6c; margin-top: 1px; }
+.item-text { flex: 1; }
 .summary-row { margin-bottom: 16px; }
 .summary-row :deep(.el-col) { display: flex; }
 .summary-item { text-align: center; padding: 14px 8px; background: #fafbfc; border-radius: 6px; border: 1px solid #f0f0f0; flex: 1; width: 100%; box-sizing: border-box; }

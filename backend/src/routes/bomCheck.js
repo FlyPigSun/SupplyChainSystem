@@ -84,6 +84,68 @@ function convertToStandardUnit(price, unit, spec) {
   return { price, unit: unit || '-', standardPrice: price, standardUnit: unit || '-' };
 }
 
+// ========== 编码检测与修复 ==========
+
+/**
+ * 检测字符串是否可能是乱码（Mojibake）
+ * 特征：包含大量 Latin-1 扩展字符（â, æ, é, ¹, è, ¼, « 等）但没有中文字符
+ */
+function looksLikeMojibake(str) {
+  if (!str || typeof str !== 'string') return false;
+  const latinExtended = (str.match(/[\u00c0-\u00ff]/g) || []).length;
+  const chinese = (str.match(/[\u4e00-\u9fff]/g) || []).length;
+  const total = str.length;
+  // Latin 扩展字符 >3 个且完全没有中文，或占比超过 30%
+  if (latinExtended > 3 && chinese === 0) return true;
+  if (latinExtended > total * 0.3 && chinese < total * 0.1) return true;
+  return false;
+}
+
+/**
+ * 尝试修复 UTF-8 Mojibake：将字符串按 Latin-1 编码为字节后再用 UTF-8 解码
+ */
+function tryFixMojibake(str) {
+  if (!str || typeof str !== 'string') return str;
+  try {
+    const bytes = Buffer.from(str, 'binary');
+    const fixed = bytes.toString('utf8');
+    // 修复成功：包含中文且没有替换字符，且长度合理
+    if (/[\u4e00-\u9fff]/.test(fixed) && !/\uFFFD/.test(fixed) && fixed.length <= str.length * 2) {
+      return fixed;
+    }
+  } catch (e) {}
+  return str;
+}
+
+/**
+ * 从文件名提取产品名称（移除《日配》《周配》前缀和扩展名）
+ */
+function extractProductNameFromFileName(fileName) {
+  if (!fileName) return '';
+  return fileName
+    .replace(/^《(日配|周配)》/, '')
+    .replace(/\.xlsx?$/i, '')
+    .trim();
+}
+
+/**
+ * 清理并获取可靠的产品名称
+ */
+function sanitizeProductName(excelName, fileName) {
+  const fromFile = extractProductNameFromFileName(fileName);
+  if (!excelName) return fromFile;
+  // 优先尝试修复编码
+  const fixed = tryFixMojibake(excelName);
+  if (fixed !== excelName && !looksLikeMojibake(fixed)) {
+    return fixed;
+  }
+  // 如果仍像乱码，回退到文件名
+  if (looksLikeMojibake(excelName)) {
+    return fromFile;
+  }
+  return excelName || fromFile;
+}
+
 // 成本占比预警规则：每次请求时重新读取文件，修改后无需重启
 function loadCostRules() {
   try {
@@ -914,7 +976,10 @@ async function runBomCheck(rows, fileName) {
     costRows,
     totalPrice
   } = parseAuditSheet(rows);
-  const productName = excelProductName || fileName;
+
+  // 修复可能的编码乱码问题
+  const productName = sanitizeProductName(excelProductName, fileName);
+  const hasEncodingIssue = looksLikeMojibake(excelProductName);
 
   // ===== 成本占比预警（支持占比区间 + 金额绝对值区间） =====
   const costWarnings = [];
@@ -1189,7 +1254,8 @@ async function runBomCheck(rows, fileName) {
     systemMaterialCount: systemMaterials.length,
     formulaDiffCount, priceDiffCount, fuzzyCount, flavorDiffCount, noPriceCount, correctedCount,
     formulaDiffs, priceDiffs,
-    costBreakdown, costRows, totalPrice, costItems, costWarnings
+    costBreakdown, costRows, totalPrice, costItems, costWarnings,
+    _encodingIssue: hasEncodingIssue
   };
 }
 
