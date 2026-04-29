@@ -124,18 +124,19 @@
 </template>
 
 <script setup>
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { Expand, User, List } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
+import { useMobile } from '../composables/useMobile'
 import { authApi } from '../api'
 
 const router = useRouter()
 const authStore = useAuthStore()
+const { isMobile } = useMobile()
 
 const sidebarVisible = ref(false)
-const windowWidth = ref(window.innerWidth)
 
 // 修改密码相关
 const pwdDialogVisible = ref(false)
@@ -171,26 +172,12 @@ const pwdRules = {
   ]
 }
 
-const isMobile = computed(() => windowWidth.value < 768)
-
-const handleResize = () => {
-  windowWidth.value = window.innerWidth
-  if (!isMobile.value) {
-    sidebarVisible.value = false
-  }
-}
-
 onMounted(() => {
-  window.addEventListener('resize', handleResize)
   // 检查是否需要强制修改密码
   if (authStore.mustChangePwd) {
     isForceChange.value = true
     pwdDialogVisible.value = true
   }
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
 })
 
 const onMenuSelect = () => {

@@ -408,9 +408,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Plus, Delete, EditPen, Upload, Download } from '@element-plus/icons-vue'
+import { useMobile } from '../composables/useMobile'
 import { productApi, calculatorApi, logApi, calculatorImportApi } from '../api'
 import CorrectionDialog from '../components/CorrectionDialog.vue'
 
@@ -422,20 +423,10 @@ const viewMode = ref('product')
 const calculating = ref(false)
 
 // 响应式布局
-const windowWidth = ref(window.innerWidth)
-const isMobile = computed(() => windowWidth.value < 768)
-
-const handleResize = () => {
-  windowWidth.value = window.innerWidth
-}
+const { isMobile } = useMobile()
 
 onMounted(() => {
   loadData()
-  window.addEventListener('resize', handleResize)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
 })
 
 // 导入相关

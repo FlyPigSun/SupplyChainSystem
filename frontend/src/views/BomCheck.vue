@@ -570,9 +570,10 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Upload, Document, Loading, WarningFilled, CircleCloseFilled } from '@element-plus/icons-vue'
+import { useMobile } from '../composables/useMobile'
 import { bomCheckApi } from '../api'
 import CorrectionDialog from '../components/CorrectionDialog.vue'
 
@@ -587,20 +588,7 @@ const showCorrectionDialog = ref(false)
 const correctingItem = ref(null)
 
 // 响应式布局
-const windowWidth = ref(window.innerWidth)
-const isMobile = computed(() => windowWidth.value < 768)
-
-const handleResize = () => {
-  windowWidth.value = window.innerWidth
-}
-
-onMounted(() => {
-  window.addEventListener('resize', handleResize)
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', handleResize)
-})
+const { isMobile } = useMobile()
 
 const hasResult = computed(() => result.value !== null)
 

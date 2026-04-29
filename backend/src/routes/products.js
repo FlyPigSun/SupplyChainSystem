@@ -187,10 +187,8 @@ router.get('/export/excel', authMiddleware, async (req, res) => {
     const buffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
     
     // 记录操作日志
-    await runAsync(
-      'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',
-      [req.user.username, 'export_products', `导出 ${products.length} 个产品的配方`]
-    );
+    const { logOperation } = require('../utils/logOperation');
+    await logOperation(req.user.username, 'export_products', `导出 ${products.length} 个产品的配方`);
     
     const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
     const filename = `产品配方导出_${timestamp}.xlsx`;
@@ -264,10 +262,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
 
     await insertMaterials(productId, materials);
 
-    await runAsync(
-      'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',
-      [req.user.username, 'create_product', `创建产品: ${name}`]
-    );
+    await logOperation(req.user.username, 'create_product', `创建产品: ${name}`);
 
     res.json({ ok: true, msg: '创建成功', productId });
   } catch (err) {
@@ -295,10 +290,7 @@ router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
       await insertMaterials(id, materials);
     }
 
-    await runAsync(
-      'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',
-      [req.user.username, 'update_product', `更新产品ID: ${id}`]
-    );
+    await logOperation(req.user.username, 'update_product', `更新产品ID: ${id}`);
 
     res.json({ ok: true, msg: '更新成功' });
   } catch (err) {
@@ -314,10 +306,7 @@ router.delete('/:id', authMiddleware, adminMiddleware, async (req, res) => {
     await runAsync('DELETE FROM product_materials WHERE product_id = ?', [id]);
     await runAsync('DELETE FROM products WHERE id = ?', [id]);
     
-    await runAsync(
-      'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',
-      [req.user.username, 'delete_product', `删除产品ID: ${id}`]
-    );
+    await logOperation(req.user.username, 'delete_product', `删除产品ID: ${id}`);
     
     res.json({ ok: true, msg: '删除成功' });
   } catch (err) {

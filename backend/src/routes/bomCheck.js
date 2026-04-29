@@ -9,80 +9,12 @@ const XLSX = require('xlsx');
 const path = require('path');
 const fs = require('fs');
 const { authMiddleware } = require('../middleware/auth');
-const { queryAsync } = require('../utils/db');
-const { runAsync } = require('../utils/db');
+const { queryAsync, runAsync } = require('../utils/db');
 const { matchPricesForAudit } = require('../utils/priceMatcher');
+const { convertToStandardUnit } = require('../utils/unitConversion');
+const { logOperation } = require('../utils/logOperation');
 
 const router = express.Router();
-
-// ========== 单位换算表 ==========
-// 换算为 kg（重量）或 L（容积）的倍数
-const UNIT_CONVERSIONS = {
-  // 重量 → kg
-  'kg': 1, '千克': 1, '公斤': 1,
-  'g': 0.001, '克': 0.001,
-  '斤': 0.5,
-  '500g': 0.5, '250g': 0.25, '100g': 0.1, '50g': 0.05, '25g': 0.025, '10g': 0.01, '5g': 0.005,
-  // 容积 → L
-  'l': 1, 'L': 1, '升': 1,
-  'ml': 0.001, '毫升': 0.001,
-};
-
-// 从规格字符串中提取重量（单位为 kg）
-// 支持格式："25kg"、"500g"、"10斤"、"25kg/箱"、"500g*20包" 等
-function extractWeightKg(spec) {
-  if (!spec) return null;
-  // 匹配数字+单位的模式
-  const match = String(spec).match(/(\d+(?:\.\d+)?)\s*(kg|克|g|斤|升|L|ml)/i);
-  if (!match) return null;
-
-  const value = parseFloat(match[1]);
-  const u = (match[2] || '').toLowerCase();
-
-  let kgValue;
-  if (u === 'kg') kgValue = value;
-  else if (u === 'g' || u === '克') kgValue = value / 1000;
-  else if (u === '斤') kgValue = value * 0.5;
-  else if (u === 'l' || u === '升') kgValue = value;   // 液体按体积等价
-  else if (u.startsWith('m')) kgValue = value / 1000;   // ml
-  else return null;
-
-  return Math.round(kgValue * 10000) / 10000;
-}
-
-// 将价格换算为标准单位（元/kg 或 元/L）
-function convertToStandardUnit(price, unit, spec) {
-  if (price == null || price === 0) {
-    return { price: price || null, unit: unit || null, standardPrice: null, standardUnit: null };
-  }
-
-  const u = (unit || '').trim();
-  const factor = UNIT_CONVERSIONS[u] || UNIT_CONVERSIONS[unit] || null;
-
-  if (factor !== null && factor !== undefined) {
-    // 已知标准单位，直接换算
-    const stdUnit = (/^[ml]|毫升/i.test(u) ? 'L' : 'kg');
-    const stdPrice = Math.round((price / factor) * 1000000) / 1000000;
-    return { originalPrice: price, originalUnit: unit, standardPrice: stdPrice, standardUnit: stdUnit, factor };
-  }
-
-  // 单位不是标准计量单位（如"箱"、"袋"、"桶"等），尝试从规格中提取重量
-  const weightKg = extractWeightKg(spec);
-  if (weightKg && weightKg > 0) {
-    const stdPrice = Math.round((price / weightKg) * 1000000) / 1000000;
-    return {
-      originalPrice: price,
-      originalUnit: unit || '-',
-      standardPrice: stdPrice,
-      standardUnit: 'kg',
-      factor: weightKg,
-      source: `规格 ${spec}`
-    };
-  }
-
-  // 完全无法识别，返回原始值
-  return { price, unit: unit || '-', standardPrice: price, standardUnit: unit || '-' };
-}
 
 // ========== 编码检测与修复 ==========
 
@@ -1270,9 +1202,10 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
 
     const result = await runBomCheck(rows, fileName);
 
-    await runAsync(
-      'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',
-      [req.user.username, 'bom_check', `成本核查: ${result.productName}, 配方差异${result.formulaDiffCount}项, 价格差异${result.priceDiffCount}项`]
+    await logOperation(
+      req.user.username,
+      'bom_check',
+      `成本核查: ${result.productName}, 配方差异${result.formulaDiffCount}项, 价格差异${result.priceDiffCount}项`
     );
 
     res.json({ ok: true, ...result });

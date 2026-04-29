@@ -66,10 +66,27 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// 错误处理
+// 统一错误处理中间件
+// 配合 asyncHandler 使用：自动捕获异步异常并统一响应格式
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ error: '服务器内部错误' });
+  // 已经是标准化响应的，直接透传
+  if (err.ok === false && err.msg) {
+    return res.status(err.status || 500).json(err);
+  }
+
+  // 业务校验错误（如 ValidationError）
+  if (err.status === 400 || err.name === 'ValidationError') {
+    return res.status(400).json({ ok: false, msg: err.message || '参数错误' });
+  }
+
+  // 未授权
+  if (err.status === 401 || err.message === '未授权') {
+    return res.status(401).json({ ok: false, msg: '未授权，请重新登录' });
+  }
+
+  // 默认服务器内部错误
+  console.error('[Error]', err.stack || err.message || err);
+  res.status(500).json({ ok: false, msg: err.message || '服务器内部错误' });
 });
 
 // 获取局域网 IP

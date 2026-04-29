@@ -6,6 +6,7 @@ const express = require('express');
 const { authMiddleware } = require('../middleware/auth');
 const { queryAsync, getAsync } = require('../utils/db');
 const { matchPrices } = require('../utils/priceMatcher');
+const { calcWeightInPriceUnit } = require('../utils/unitConversion');
 
 const router = express.Router();
 
@@ -87,23 +88,8 @@ router.post('/calculate', authMiddleware, async (req, res) => {
         if (priceInfo && priceInfo.price) {
           pricePerKg = parseFloat(priceInfo.price);
           priceUnit = priceInfo.unit || 'kg';
-          const materialUnit = m.unit || 'g';
-          let weightInPriceUnit = totalWeight;
-          
-          if (materialUnit === 'g' && priceUnit === 'kg') {
-            weightInPriceUnit = totalWeight / 1000;
-          } else if (materialUnit === 'kg' && priceUnit === 'g') {
-            weightInPriceUnit = totalWeight * 1000;
-          } else if (['袋', '箱', '桶'].includes(priceUnit)) {
-            const specKg = parseSpecToKg(priceInfo.spec);
-            if (specKg) {
-              weightInPriceUnit = (totalWeight / 1000) / specKg;
-            } else {
-              weightInPriceUnit = totalWeight / 1000;
-            }
-          }
-          
-          cost = weightInPriceUnit * pricePerKg;
+          const weightInPriceUnit = calcWeightInPriceUnit(totalWeight, pricePerKg, priceUnit, priceInfo.spec);
+          cost = weightInPriceUnit !== null ? weightInPriceUnit * pricePerKg : null;
         }
 
         results.push({
@@ -145,18 +131,5 @@ router.post('/calculate', authMiddleware, async (req, res) => {
     res.status(500).json({ ok: false, msg: '计算失败' });
   }
 });
-
-function parseSpecToKg(spec) {
-  if (!spec) return null;
-  const match1 = spec.match(/(\d+(?:\.\d+)?)\s*kg\s*\*\s*(\d+)/i);
-  if (match1) return parseFloat(match1[1]) * parseFloat(match1[2]);
-  const match2 = spec.match(/(\d+(?:\.\d+)?)\s*kg/i);
-  if (match2) return parseFloat(match2[1]);
-  const match3 = spec.match(/(\d+(?:\.\d+)?)\s*[Ll]/);
-  if (match3) return parseFloat(match3[1]);
-  const match4 = spec.match(/(\d+(?:\.\d+)?)\s*g(?:\s*[/×*])/i);
-  if (match4) return parseFloat(match4[1]) / 1000;
-  return null;
-}
 
 module.exports = router;
