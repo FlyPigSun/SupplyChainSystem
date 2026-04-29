@@ -138,6 +138,186 @@ function parsePercent(val) {
   return parseFloat(n.toFixed(2));
 }
 
+// ========== 模板表头校验 ==========
+
+// 将单元格值统一为字符串并清理
+function cellStr(val) {
+  if (val == null) return '';
+  return String(val).trim().replace(/\s+/g, '').replace(/[（(].*?[)）]/g, '');
+}
+
+// 检查一行中是否包含指定关键词（模糊匹配）
+function rowHasKeywords(row, keywords) {
+  const cells = row.map(cellStr);
+  return keywords.map(kw => {
+    const cleanKw = kw.replace(/\s+/g, '');
+    return cells.some(c => c.includes(cleanKw));
+  });
+}
+
+// 校验模板表头结构
+// 返回 { valid: boolean, errors: string[], details: object }
+function validateTemplateHeaders(rows) {
+  const errors = [];
+  const details = {
+    productComposition: { found: false, rowIndex: -1, missing: [] },
+    packaging: { found: false, rowIndex: -1, missing: [] },
+    singleProduct: { found: false, rowIndex: -1, missing: [] },
+    bomCost: { found: false, rowIndex: -1, missing: [] }
+  };
+
+  // 1. 产品组成区域表头校验
+  // 需要包含：工艺、组成、原材料、品牌/型号、重量、含税单价、不含税单价、金额、百分比、备注
+  const productCompKeywords = ['工艺', '组成', '原材料', '品牌', '型号', '重量', '含税单价', '不含税单价', '金额', '百分比', '备注'];
+  let foundProductComp = false;
+  for (let i = 0; i < Math.min(rows.length, 30); i++) {
+    const r = rows[i];
+    if (!r || r.length < 8) continue;
+    const cell0 = cellStr(r[0]);
+    // 跳过标题行和区域标记行
+    if (cell0 === '产品组成' || cell0 === '成本核算') continue;
+    const matches = rowHasKeywords(r, productCompKeywords);
+    // 必须同时包含：工艺、组成、原材料
+    const hasCraft = matches[0];      // 工艺
+    const hasComp = matches[1];       // 组成
+    const hasMaterial = matches[2];   // 原材料
+    if (hasCraft && hasComp && hasMaterial) {
+      foundProductComp = true;
+      details.productComposition.found = true;
+      details.productComposition.rowIndex = i;
+      const requiredForProduct = ['工艺', '组成', '原材料', '重量', '含税单价', '不含税单价', '金额'];
+      const requiredMatches = rowHasKeywords(r, requiredForProduct);
+      const missing = requiredForProduct.filter((_, idx) => !requiredMatches[idx]);
+      if (missing.length > 0) {
+        details.productComposition.missing = missing;
+        errors.push(`产品组成表头（第${i + 1}行）缺少必填字段：${missing.join('、')}`);
+      }
+      break;
+    }
+  }
+  if (!foundProductComp) {
+    details.productComposition.found = false;
+    errors.push('未找到「产品组成」区域表头，请检查模板格式');
+  }
+
+  // 2. 单个产品包材组成区域表头校验
+  // 需要包含：包材名称、数量、含税单价、不含税单价、金额、百分比、备注
+  const packagingKeywords = ['包材名称', '数量', '含税单价', '不含税单价', '金额', '百分比', '备注'];
+  let foundPackaging = false;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length < 8) continue;
+    const cell0 = cellStr(r[0]);
+    // 跳过区域标记行
+    if (cell0 === '单个产品包材组成') continue;
+    // 如果当前行上方有"单个产品包材组成"标记，则检查
+    let hasPackagingMarker = false;
+    for (let j = Math.max(0, i - 5); j < i; j++) {
+      if (cellStr(rows[j][0]) === '单个产品包材组成') {
+        hasPackagingMarker = true;
+        break;
+      }
+    }
+    if (!hasPackagingMarker) continue;
+
+    const matches = rowHasKeywords(r, packagingKeywords);
+    const hasName = matches[0];  // 包材名称
+    if (hasName) {
+      foundPackaging = true;
+      details.packaging.found = true;
+      details.packaging.rowIndex = i;
+      const requiredForPackaging = ['包材名称', '数量', '金额'];
+      const requiredMatches = rowHasKeywords(r, requiredForPackaging);
+      const missing = requiredForPackaging.filter((_, idx) => !requiredMatches[idx]);
+      if (missing.length > 0) {
+        details.packaging.missing = missing;
+        errors.push(`包材组成表头（第${i + 1}行）缺少必填字段：${missing.join('、')}`);
+      }
+      break;
+    }
+  }
+  if (!foundPackaging) {
+    details.packaging.found = false;
+    errors.push('未找到「单个产品包材组成」区域表头，请检查模板格式');
+  }
+
+  // 3. 单个成品组成区域表头校验（该区域为汇总区域，仅做基本结构校验）
+  // 需要包含：工艺分项、组成、不含税单价、金额、百分比、备注
+  const singleProductKeywords = ['工艺分项', '组成', '不含税单价', '金额', '百分比', '备注'];
+  let foundSingleProduct = false;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length < 8) continue;
+    const cell0 = cellStr(r[0]);
+    if (cell0 === '单个成品组成') continue;
+    let hasMarker = false;
+    for (let j = Math.max(0, i - 5); j < i; j++) {
+      if (cellStr(rows[j][0]) === '单个成品组成') {
+        hasMarker = true;
+        break;
+      }
+    }
+    if (!hasMarker) continue;
+
+    const matches = rowHasKeywords(r, singleProductKeywords);
+    const hasCraft = matches[0];  // 工艺分项
+    const hasComp = matches[1];   // 组成
+    if (hasCraft || hasComp) {
+      foundSingleProduct = true;
+      details.singleProduct.found = true;
+      details.singleProduct.rowIndex = i;
+      break;
+    }
+  }
+  // 单个成品组成是可选的汇总区域，找不到不报错
+
+  // 4. BOM成本合计区域表头校验
+  // 需要包含：项目、金额、百分比、备注
+  const bomCostKeywords = ['项目', '金额', '百分比', '备注'];
+  let foundBomCost = false;
+  for (let i = 0; i < rows.length; i++) {
+    const r = rows[i];
+    if (!r || r.length < 8) continue;
+    const cell0 = cellStr(r[0]);
+    if (cell0 === 'BOM成本合计') continue;
+    let hasMarker = false;
+    for (let j = Math.max(0, i - 3); j < i; j++) {
+      if (cellStr(rows[j][0]) === 'BOM成本合计') {
+        hasMarker = true;
+        break;
+      }
+    }
+    if (!hasMarker) continue;
+
+    const matches = rowHasKeywords(r, bomCostKeywords);
+    const hasItem = matches[0];   // 项目
+    const hasAmount = matches[1]; // 金额
+    if (hasItem && hasAmount) {
+      foundBomCost = true;
+      details.bomCost.found = true;
+      details.bomCost.rowIndex = i;
+      const requiredForBom = ['项目', '金额'];
+      const requiredMatches = rowHasKeywords(r, requiredForBom);
+      const missing = requiredForBom.filter((_, idx) => !requiredMatches[idx]);
+      if (missing.length > 0) {
+        details.bomCost.missing = missing;
+        errors.push(`BOM成本合计表头（第${i + 1}行）缺少必填字段：${missing.join('、')}`);
+      }
+      break;
+    }
+  }
+  if (!foundBomCost) {
+    details.bomCost.found = false;
+    errors.push('未找到「BOM成本合计」区域表头，请检查模板格式');
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    details
+  };
+}
+
 function parseAuditSheet(rows) {
   const materials = [];
   const costBreakdown = {};  // 成本组成：{ 食材成本: 2.735629, 人工费用: 0.6712, ... }
@@ -299,6 +479,38 @@ function parseAuditSheet(rows) {
 }
 
 async function runBomCheck(rows, fileName) {
+  // 先进行表头结构校验
+  const headerValidation = validateTemplateHeaders(rows);
+  if (!headerValidation.valid) {
+    return {
+      productName: fileName,
+      productWeight: 0,
+      yieldRate: null,
+      factoryPrice: null,
+      netWeight: null,
+      matchedProductCount: 0,
+      matchedProducts: [],
+      auditMaterialCount: 0,
+      auditSections: [],
+      systemMaterialCount: 0,
+      formulaDiffCount: 0,
+      priceDiffCount: 0,
+      fuzzyCount: 0,
+      flavorDiffCount: 0,
+      noPriceCount: 0,
+      correctedCount: 0,
+      formulaDiffs: [],
+      priceDiffs: [],
+      costBreakdown: {},
+      costRows: [],
+      totalPrice: 0,
+      costItems: [],
+      costWarnings: headerValidation.errors.map(msg => ({ type: 'error', message: msg })),
+      _validationErrors: headerValidation.errors,
+      _validationDetails: headerValidation.details
+    };
+  }
+
   const {
     materials: auditMaterials,
     productName: excelProductName,

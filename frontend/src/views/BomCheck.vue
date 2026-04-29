@@ -65,23 +65,38 @@
           <span v-if="result.netWeight !== null && result.netWeight !== undefined"> | 净含量：{{ result.netWeight }}g</span>
         </template>
       </el-alert>
+      <!-- 模板校验错误提示 -->
+      <el-alert
+        v-if="result._validationErrors && result._validationErrors.length > 0"
+        type="error" :closable="false" class="product-alert validation-alert" show-icon
+      >
+        <template #title>
+          <div class="validation-title">模板格式错误，请修正后重新上传</div>
+        </template>
+        <div class="validation-list">
+          <div v-for="(err, idx) in result._validationErrors" :key="idx" class="validation-item">
+            {{ idx + 1 }}. {{ err }}
+          </div>
+        </div>
+      </el-alert>
+
       <el-alert 
-        v-if="result.matchedProductCount === 0" 
+        v-if="result.matchedProductCount === 0 && !(result._validationErrors?.length > 0)" 
         title="未匹配到系统产品，仅显示价格核查" 
         type="warning" :closable="false" class="product-alert"
       />
       <el-alert 
-        v-if="result.fuzzyCount > 0 || result.flavorDiffCount > 0" 
+        v-if="(result.fuzzyCount > 0 || result.flavorDiffCount > 0) && !(result._validationErrors?.length > 0)" 
         :title="matchWarningTitle"
         type="warning" :closable="false" class="product-alert" show-icon
       />
       <el-alert
-        v-if="result.correctedCount > 0"
+        v-if="result.correctedCount > 0 && !(result._validationErrors?.length > 0)"
         :title="`${result.correctedCount} 项原料已应用人工修正匹配，标有「已修正」标签`"
         type="success" :closable="false" class="product-alert" show-icon
       />
       <el-alert
-        v-if="result.costWarnings && result.costWarnings.length > 0"
+        v-if="result.costWarnings && result.costWarnings.length > 0 && !(result._validationErrors?.length > 0)"
         :title="`成本占比异常：${result.costWarnings.map(w => w.label + ' ' + (w.percent !== null ? w.percent + '%' : '缺失')).join('、')}`"
         type="error" :closable="false" class="product-alert" show-icon
       />
@@ -648,6 +663,11 @@ const clearResult = () => {
 .action-bar { margin-top: 12px; display: flex; justify-content: flex-end; }
 .result-section { margin-top: 16px; }
 .product-alert { margin-bottom: 12px; }
+.validation-alert :deep(.el-alert__title) { font-size: 15px; font-weight: 600; }
+.validation-alert :deep(.el-alert__description) { padding-top: 8px; }
+.validation-title { font-weight: 600; margin-bottom: 4px; }
+.validation-list { margin-top: 6px; }
+.validation-item { font-size: 13px; line-height: 1.8; color: #f56c6c; }
 .summary-row { margin-bottom: 16px; }
 .summary-row :deep(.el-col) { display: flex; }
 .summary-item { text-align: center; padding: 14px 8px; background: #fafbfc; border-radius: 6px; border: 1px solid #f0f0f0; flex: 1; width: 100%; box-sizing: border-box; }
