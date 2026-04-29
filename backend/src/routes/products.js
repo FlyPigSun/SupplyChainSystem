@@ -78,8 +78,11 @@ router.get('/factories', authMiddleware, async (req, res) => {
     const rows = await queryAsync(
       'SELECT DISTINCT supplier as name FROM product_labels WHERE supplier IS NOT NULL AND supplier != "" ORDER BY supplier'
     );
-    res.json({ ok: true, factories: rows.map(r => r.name) });
+    const factories = rows.map(r => r.name);
+    console.log('[factories] 返回生产工厂列表:', factories.length, '个');
+    res.json({ ok: true, factories });
   } catch (err) {
+    console.error('[factories] 查询失败:', err.message);
     res.status(500).json({ ok: false, msg: '查询失败' });
   }
 });

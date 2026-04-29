@@ -563,9 +563,11 @@ const exportProducts = async () => {
 const loadFactories = async () => {
   try {
     const res = await productApi.getFactories()
+    console.log('[loadFactories] API 返回:', res)
     factoryOptions.value = res.factories || []
+    console.log('[loadFactories] 选项数量:', factoryOptions.value.length)
   } catch (error) {
-    // 静默失败
+    console.error('[loadFactories] 加载失败:', error)
   }
 }
 
