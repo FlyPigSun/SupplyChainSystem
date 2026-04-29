@@ -22,6 +22,12 @@
             <el-option v-for="t in typeOptions" :key="t" :label="t" :value="t" />
           </el-select>
         </el-form-item>
+        <el-form-item label="销售状态">
+          <el-select v-model="searchForm.sales_status" placeholder="全部状态" clearable style="width: 140px">
+            <el-option label="销售中" value="on_sale" />
+            <el-option label="已下架" value="off_sale" />
+          </el-select>
+        </el-form-item>
         <el-form-item>
           <el-button type="primary" @click="loadProducts">
             <el-icon><Search /></el-icon> 查询
@@ -36,10 +42,16 @@
         <el-table-column prop="code" label="产品编码" width="120" />
         <el-table-column prop="name" label="产品名称" min-width="160" show-overflow-tooltip />
         <el-table-column prop="type" label="类型" width="120" />
+        <el-table-column label="销售状态" width="90" align="center">
+          <template #default="{ row }">
+            <el-tag v-if="row.sales_status === 'on_sale'" type="success" size="small">销售中</el-tag>
+            <el-tag v-else type="info" size="small">已下架</el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="供应商" min-width="140" show-overflow-tooltip>
           <template #default="{ row }">
-            <span v-if="getSuppliers(row.materials).length === 0" class="no-supplier">未填写</span>
-            <span v-else>{{ getSuppliers(row.materials).join('、') }}</span>
+            <span v-if="row.supplier_name">{{ row.supplier_name }}</span>
+            <span v-else class="no-supplier">未指定</span>
           </template>
         </el-table-column>
         <el-table-column prop="unit" label="单位" width="70" align="center" />
@@ -176,7 +188,29 @@
         <el-form-item label="单位">
           <el-input v-model="form.unit" placeholder="默认：个" />
         </el-form-item>
-        
+        <el-form-item label="销售状态">
+          <el-radio-group v-model="form.sales_status">
+            <el-radio value="on_sale">销售中</el-radio>
+            <el-radio value="off_sale">已下架</el-radio>
+          </el-radio-group>
+        </el-form-item>
+        <el-form-item label="供应商">
+          <el-select
+            v-model="form.supplier_id"
+            placeholder="请选择供应商"
+            clearable
+            filterable
+            style="width: 100%"
+          >
+            <el-option
+              v-for="s in supplierOptions"
+              :key="s.id"
+              :label="s.name"
+              :value="s.id"
+            />
+          </el-select>
+        </el-form-item>
+
         <el-divider content-position="left">配方原料</el-divider>
         
         <div v-for="(material, index) in form.materials" :key="index" class="material-row">
@@ -216,6 +250,11 @@
         <el-descriptions-item label="产品名称">{{ currentProduct.name }}</el-descriptions-item>
         <el-descriptions-item label="类型">{{ currentProduct.type }}</el-descriptions-item>
         <el-descriptions-item label="单位">{{ currentProduct.unit }}</el-descriptions-item>
+        <el-descriptions-item label="销售状态">
+          <el-tag v-if="currentProduct.sales_status === 'on_sale'" type="success" size="small">销售中</el-tag>
+          <el-tag v-else type="info" size="small">已下架</el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item label="供应商">{{ currentProduct.supplier_name || '-' }}</el-descriptions-item>
       </el-descriptions>
       
       <h4 style="margin: 16px 0 8px; font-size: 14px; color: #1d2129;">配方明细</h4>
@@ -241,7 +280,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Document, Loading, Plus, Delete, Search, Download } from '@element-plus/icons-vue'
 import { useAuthStore } from '../stores/auth'
-import { productApi, recipeImportApi } from '../api'
+import { productApi, recipeImportApi, supplierApi } from '../api'
 
 const authStore = useAuthStore()
 const loading = ref(false)
@@ -250,7 +289,8 @@ const typeOptions = ref([])
 
 const searchForm = reactive({
   keyword: '',
-  type: ''
+  type: '',
+  sales_status: ''
 })
 
 // 编辑对话框
@@ -265,8 +305,12 @@ const form = reactive({
   name: '',
   type: '',
   unit: '个',
+  sales_status: 'on_sale',
+  supplier_id: null,
   materials: []
 })
+
+const supplierOptions = ref([])
 
 const currentProduct = ref({})
 
@@ -400,6 +444,7 @@ const loadTypes = async () => {
 const resetSearch = () => {
   searchForm.keyword = ''
   searchForm.type = ''
+  searchForm.sales_status = ''
   loadProducts()
 }
 
@@ -409,6 +454,8 @@ const editProduct = (row) => {
   form.name = row.name
   form.type = row.type
   form.unit = row.unit
+  form.sales_status = row.sales_status || 'on_sale'
+  form.supplier_id = row.supplier_id || null
   form.materials = row.materials?.map(m => ({
     name: m.material_name,
     weight: m.weight,
@@ -441,6 +488,8 @@ const submitForm = async () => {
       name: form.name,
       type: form.type,
       unit: form.unit,
+      sales_status: form.sales_status,
+      supplier_id: form.supplier_id,
       materials: form.materials.filter(m => m.name && m.weight > 0)
     }
 
@@ -511,8 +560,18 @@ const exportProducts = async () => {
   }
 }
 
+const loadSuppliers = async () => {
+  try {
+    const res = await supplierApi.getList()
+    supplierOptions.value = res.suppliers || []
+  } catch (error) {
+    // 静默失败
+  }
+}
+
 onMounted(() => {
   loadTypes()
+  loadSuppliers()
   loadProducts()
 })
 </script>

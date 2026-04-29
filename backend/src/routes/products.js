@@ -26,41 +26,51 @@ router.get('/types', authMiddleware, async (req, res) => {
 // 获取所有产品
 router.get('/', authMiddleware, async (req, res) => {
   try {
-    const { keyword, type } = req.query;
-    
-    let sql = 'SELECT * FROM products WHERE 1=1';
+    const { keyword, type, sales_status } = req.query;
+
+    let sql = `
+      SELECT p.*, s.name as supplier_name
+      FROM products p
+      LEFT JOIN suppliers s ON p.supplier_id = s.id
+      WHERE 1=1
+    `;
     const params = [];
-    
+
     if (keyword) {
-      sql += ' AND (name LIKE ? OR code LIKE ?)';
+      sql += ' AND (p.name LIKE ? OR p.code LIKE ?)';
       params.push(`%${keyword}%`, `%${keyword}%`);
     }
-    
+
     if (type) {
-      sql += ' AND type = ?';
+      sql += ' AND p.type = ?';
       params.push(type);
     }
-    
-    sql += ' ORDER BY updated_at DESC';
-    
+
+    if (sales_status) {
+      sql += ' AND p.sales_status = ?';
+      params.push(sales_status);
+    }
+
+    sql += ' ORDER BY p.updated_at DESC';
+
     const products = await queryAsync(sql, params);
-    
+
     if (products.length === 0) {
       return res.json({ ok: true, products: [] });
     }
-    
+
     const productIds = products.map(p => p.id);
     const placeholders = productIds.map(() => '?').join(',');
     const materials = await queryAsync(
       `SELECT * FROM product_materials WHERE product_id IN (${placeholders})`,
       productIds
     );
-    
+
     const productsWithMaterials = products.map(p => ({
       ...p,
       materials: materials.filter(m => m.product_id === p.id)
     }));
-    
+
     res.json({ ok: true, products: productsWithMaterials });
   } catch (err) {
     res.status(500).json({ ok: false, msg: '查询失败' });
@@ -232,26 +242,26 @@ function insertMaterials(productId, materials) {
 // 创建产品（需管理员权限）
 router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { code, name, type, unit, materials } = req.body;
-    
+    const { code, name, type, unit, sales_status, supplier_id, materials } = req.body;
+
     if (!code || !name) {
       return res.status(400).json({ ok: false, msg: '产品编码和名称不能为空' });
     }
-    
+
     const info = await runAsync(
-      'INSERT INTO products (code, name, type, unit) VALUES (?, ?, ?, ?)',
-      [code, name, type, unit || '个']
+      'INSERT INTO products (code, name, type, unit, sales_status, supplier_id) VALUES (?, ?, ?, ?, ?, ?)',
+      [code, name, type, unit || '个', sales_status || 'on_sale', supplier_id || null]
     );
-    
+
     const productId = info.lastID;
-    
+
     await insertMaterials(productId, materials);
-    
+
     await runAsync(
       'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',
       [req.user.username, 'create_product', `创建产品: ${name}`]
     );
-    
+
     res.json({ ok: true, msg: '创建成功', productId });
   } catch (err) {
     if (err.message && err.message.includes('UNIQUE')) {
@@ -265,24 +275,24 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
 router.put('/:id', authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { id } = req.params;
-    const { name, type, unit, materials } = req.body;
-    
+    const { name, type, unit, sales_status, supplier_id, materials } = req.body;
+
     await runAsync(
-      'UPDATE products SET name = ?, type = ?, unit = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-      [name, type, unit, id]
+      'UPDATE products SET name = ?, type = ?, unit = ?, sales_status = ?, supplier_id = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+      [name, type, unit, sales_status || 'on_sale', supplier_id || null, id]
     );
-    
+
     // 更新原料：先删除再插入
     if (materials) {
       await runAsync('DELETE FROM product_materials WHERE product_id = ?', [id]);
       await insertMaterials(id, materials);
     }
-    
+
     await runAsync(
       'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',
       [req.user.username, 'update_product', `更新产品ID: ${id}`]
     );
-    
+
     res.json({ ok: true, msg: '更新成功' });
   } catch (err) {
     res.status(500).json({ ok: false, msg: '更新失败' });
