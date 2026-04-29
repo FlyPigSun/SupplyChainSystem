@@ -53,11 +53,18 @@
 
     <!-- 核查结果 -->
     <div v-if="hasResult" class="result-section">
-      <el-alert 
-        v-if="result.productName" 
-        :title="`品名：${result.productName}${result.productWeight ? ' | 克重：' + result.productWeight + 'g' : ''}`" 
+      <el-alert
+        v-if="result.productName"
         type="info" :closable="false" class="product-alert"
-      />
+      >
+        <template #title>
+          <span>品名：{{ result.productName }}</span>
+          <span v-if="result.productWeight"> | 克重：{{ result.productWeight }}g</span>
+          <span v-if="result.yieldRate !== null && result.yieldRate !== undefined"> | 出成率：{{ result.yieldRate }}%</span>
+          <span v-if="result.factoryPrice !== null && result.factoryPrice !== undefined"> | 出厂价：¥{{ result.factoryPrice.toFixed(2) }}</span>
+          <span v-if="result.netWeight !== null && result.netWeight !== undefined"> | 净含量：{{ result.netWeight }}g</span>
+        </template>
+      </el-alert>
       <el-alert 
         v-if="result.matchedProductCount === 0" 
         title="未匹配到系统产品，仅显示价格核查" 
@@ -199,6 +206,13 @@
                 <span class="mobile-card-label">占比</span>
                 <span class="mobile-card-value" :class="{ 'diff-amount': row.status === 'warning' }">
                   <template v-if="row.percent !== null">{{ row.percent.toFixed(1) }}%</template>
+                  <span v-else class="no-data">-</span>
+                </span>
+              </div>
+              <div class="mobile-card-row">
+                <span class="mobile-card-label">Excel占比</span>
+                <span class="mobile-card-value">
+                  <template v-if="row.percent !== null && row.percent !== undefined">{{ row.percent.toFixed(1) }}%</template>
                   <span v-else class="no-data">-</span>
                 </span>
               </div>
@@ -347,6 +361,12 @@
               <span v-else>-</span>
             </template>
           </el-table-column>
+          <el-table-column label="Excel占比" width="90">
+            <template #default="{ row }">
+              <span v-if="row.percent !== null && row.percent !== undefined">{{ row.percent.toFixed(1) }}%</span>
+              <span v-else class="no-data">-</span>
+            </template>
+          </el-table-column>
           <el-table-column label="原料库价格" width="140">
             <template #default="{ row }">
               <div v-if="row.sysPrice !== null">
@@ -423,6 +443,13 @@
                 <span class="mobile-card-value">
                   <template v-if="row.auditExTaxPrice">¥{{ row.auditExTaxPrice.toFixed(2) }}</template>
                   <span v-else>-</span>
+                </span>
+              </div>
+              <div class="mobile-card-row">
+                <span class="mobile-card-label">Excel占比</span>
+                <span class="mobile-card-value">
+                  <template v-if="row.percent !== null && row.percent !== undefined">{{ row.percent.toFixed(1) }}%</template>
+                  <span v-else class="no-data">-</span>
                 </span>
               </div>
               <div class="mobile-card-row">

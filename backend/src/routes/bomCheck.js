@@ -110,6 +110,34 @@ const upload = multer({
   }
 });
 
+// 新模板列索引常量
+const COL_NAME = 2;       // 原材料名称 (C列)
+const COL_BRAND = 3;      // 品牌/型号 (D列)
+const COL_WEIGHT = 4;     // 重量(g)/数量 (E列)
+const COL_TAX_PRICE = 5;  // 含税单价 (F列)
+const COL_EX_PRICE = 6;   // 不含税单价 (G列)
+const COL_COST = 7;       // 金额 (H列)
+const COL_PERCENT = 8;    // 百分比 (I列)
+
+function parseNumOrNull(val) {
+  if (val == null || val === '') return null;
+  const str = String(val).trim();
+  if (str === '' || str === '-' || str.includes('公式') || str.includes('一致') || str.startsWith('#')) return null;
+  const n = parseFloat(str);
+  return isNaN(n) ? null : n;
+}
+
+function parsePercent(val) {
+  if (val == null || val === '') return null;
+  const str = String(val).trim();
+  if (str === '' || str === '-' || str.startsWith('#')) return null;
+  const n = parseFloat(str);
+  if (isNaN(n)) return null;
+  // Excel 百分比公式结果通常是小数（0~1），转换为百分比
+  if (n > 0 && n < 1) return parseFloat((n * 100).toFixed(2));
+  return parseFloat(n.toFixed(2));
+}
+
 function parseAuditSheet(rows) {
   const materials = [];
   const costBreakdown = {};  // 成本组成：{ 食材成本: 2.735629, 人工费用: 0.6712, ... }
@@ -117,72 +145,172 @@ function parseAuditSheet(rows) {
   let currentSection = '';
   let productName = '';
   let productWeight = 0;
-  let totalPrice = 0;  // 抹零合计
-  let inCostSection = false;  // 是否进入成品原料组成区域
+  let yieldRate = null;      // 出成率
+  let factoryPrice = null;   // 实际出厂价
+  let netWeight = null;      // 净含量
+  let totalPrice = 0;        // 抹零合计
+  let inCostSection = false; // 是否进入BOM成本合计区域
+  let inPackagingSection = false; // 是否进入包材区域
+  let skipSection = false;   // 是否跳过当前区域（如单个成品组成）
+
+  const sectionNames = ['酥皮', '面团', '馅料', '装饰', '表面酱料', '注馅'];
 
   for (let i = 0; i < rows.length; i++) {
     const r = rows[i];
     const cell0 = String(r[0] || '').trim();
     const cell1 = String(r[1] || '').trim();
+    const cellName = String(r[COL_NAME] || '').trim();
 
     if (cell0 === '成本核算') continue;
+    if (cell0 === '产品组成') continue;
     if (cell1 === '原材料' || cell1 === '原料') continue;
 
-    const sectionNames = ['面团', '馅料', '装饰', '表面酱料', '包材组成', '成品原料组成'];
-    if (sectionNames.includes(cell0)) {
-      currentSection = cell0;
-      if (cell0 === '成品原料组成') inCostSection = true;
-      continue;
-    }
-    if (cell0 === '品名：') { productName = cell1; continue; }
-    if (cell0.includes('克重') || String(r[8] || '').includes('克重')) {
-      const lastRow = rows[rows.length - 1];
-      productWeight = parseFloat(lastRow[8]) || 0;
+    // 识别包材区域
+    if (cell0 === '单个产品包材组成') {
+      inPackagingSection = true;
+      currentSection = '包材';
+      inCostSection = false;
+      skipSection = false;
       continue;
     }
 
-    // 提取成本组成原始数据（仅在成品原料组成区域）
-    // col4=费用名称, col6=金额
+    // 识别成本组成区域
+    if (cell0 === 'BOM成本合计') {
+      inCostSection = true;
+      inPackagingSection = false;
+      skipSection = false;
+      currentSection = '';
+      continue;
+    }
+
+    // 识别需要跳过的汇总区域
+    if (cell0 === '单个成品组成' || cell0 === '单个产品包材成本') {
+      inPackagingSection = false;
+      inCostSection = false;
+      skipSection = true;
+      currentSection = '';
+      continue;
+    }
+
+    // 识别分节（新模板：分节在 col1，工艺大类在 col0）
+    if (sectionNames.includes(cell1)) {
+      currentSection = cell1;
+      inPackagingSection = false;
+      inCostSection = false;
+      skipSection = false;
+      continue;
+    }
+
+    // 提取品名和新增字段
+    if (cell0.includes('产品名称')) {
+      productName = cellName;  // col2
+      yieldRate = parseNumOrNull(r[5]);     // col5 出成率
+      factoryPrice = parseNumOrNull(r[7]);  // col7 实际出厂价
+      netWeight = parseNumOrNull(r[9]);     // col9 净含量
+      continue;
+    }
+
+    // 跳过汇总行和表头行
+    if (['加总', '每克成本', '包材成本', '原料成本', '合计'].includes(cell1)) continue;
+    if (['加总', '每克成本', '工艺分项', '项目'].includes(cell0)) continue;
+    if (['胚体成本', '成型成本', '冷加工成本', '包材成本', '成品合计'].includes(cell0)) continue;
+
+    // 提取成本组成原始数据（BOM成本合计区域）
     if (inCostSection) {
-      const cell4 = String(r[4] || '').trim();
-      const cell6Raw = r[6];
-      const cell6 = parseFloat(cell6Raw);
+      const costName = cell0;  // col0 = 费用名称
+      const costAmountRaw = r[COL_COST];
+      const costAmount = parseFloat(costAmountRaw);
+      const costPercent = parsePercent(r[COL_PERCENT]);
       // 收集所有有费用名称的行（包括空值），用于前端展示
-      if (cell4 && cell4 !== '单价（不含税价）') {
+      if (costName && !costName.includes('BOM') && costName !== '项目') {
         costRows.push({
-          name: cell4,
-          amount: isNaN(cell6) ? null : cell6,
-          rawValue: cell6Raw !== undefined ? String(cell6Raw).trim() : '',
+          name: costName,
+          amount: isNaN(costAmount) ? null : costAmount,
+          rawValue: costAmountRaw !== undefined ? String(costAmountRaw).trim() : '',
+          percent: costPercent,
         });
         // 同时构建 costBreakdown 对象（仅有效数值）
-        if (!isNaN(cell6)) {
-          costBreakdown[cell4] = cell6;
+        if (!isNaN(costAmount)) {
+          costBreakdown[costName] = costAmount;
         }
       }
+      continue;
     }
 
-    if (['加总', '每克成本', '包材成本', '原料成本'].includes(cell1)) continue;
-    if (['加总', '每克成本'].includes(cell0)) continue;
+    // 跳过非原料区域
+    if (skipSection) continue;
 
-    const weightG = parseFloat(r[3]) || 0;
-    const taxPrice = parseFloat(r[4]) || 0;
-    const exTaxPrice = parseFloat(r[5]) || 0;
-    const cost = parseFloat(r[6]) || 0;
-    const brandSpec = String(r[2] || '').trim();
+    // 提取原料/包材数据
+    let name, brandSpec, weightG, taxPrice, exTaxPrice, cost, percent;
 
-    if (cell1 && weightG > 0) {
-      materials.push({ section: currentSection, name: cell1, brandSpec, weightG, taxPrice, exTaxPrice, cost });
+    if (inPackagingSection) {
+      // 包材区域：名称在 col0，无品牌/型号列
+      name = cell0;
+      brandSpec = '';
+      weightG = parseFloat(r[COL_WEIGHT]) || 0;
+      taxPrice = parseFloat(r[COL_TAX_PRICE]) || 0;
+      exTaxPrice = parseFloat(r[COL_EX_PRICE]) || 0;
+      cost = parseFloat(r[COL_COST]) || 0;
+      percent = parsePercent(r[COL_PERCENT]);
+    } else {
+      // 普通原料区域
+      name = cellName;
+      brandSpec = String(r[COL_BRAND] || '').trim();
+      weightG = parseFloat(r[COL_WEIGHT]) || 0;
+      taxPrice = parseFloat(r[COL_TAX_PRICE]) || 0;
+      exTaxPrice = parseFloat(r[COL_EX_PRICE]) || 0;
+      cost = parseFloat(r[COL_COST]) || 0;
+      percent = parsePercent(r[COL_PERCENT]);
+    }
+
+    if (name && weightG > 0) {
+      materials.push({
+        section: currentSection,
+        name,
+        brandSpec,
+        weightG,
+        taxPrice,
+        exTaxPrice,
+        cost,
+        percent,
+        isPackaging: inPackagingSection
+      });
     }
   }
 
   // 提取抹零合计作为占比计算基数
   totalPrice = costBreakdown['抹零合计'] || costBreakdown['合计成本'] || 0;
 
-  return { materials, productName, productWeight, costBreakdown, costRows, totalPrice };
+  // 用净含量作为产品重量
+  if (netWeight && netWeight > 0) {
+    productWeight = netWeight;
+  }
+
+  return {
+    materials,
+    productName,
+    productWeight,
+    yieldRate,
+    factoryPrice,
+    netWeight,
+    costBreakdown,
+    costRows,
+    totalPrice
+  };
 }
 
 async function runBomCheck(rows, fileName) {
-  const { materials: auditMaterials, productName: excelProductName, productWeight, costBreakdown, costRows, totalPrice } = parseAuditSheet(rows);
+  const {
+    materials: auditMaterials,
+    productName: excelProductName,
+    productWeight,
+    yieldRate,
+    factoryPrice,
+    netWeight,
+    costBreakdown,
+    costRows,
+    totalPrice
+  } = parseAuditSheet(rows);
   const productName = excelProductName || fileName;
 
   // ===== 成本占比预警（支持占比区间 + 金额绝对值区间） =====
@@ -372,7 +500,8 @@ async function runBomCheck(rows, fileName) {
         unitFactor: null,
         unitSource: null,
         diff: null, diffPercent: null, matchType: null, matchDetail: mr.matchDetail,
-        warnings: [], status: 'noprice', corrected: false
+        warnings: [], status: 'noprice', corrected: false,
+        percent: am.percent
       };
     }
 
@@ -393,7 +522,8 @@ async function runBomCheck(rows, fileName) {
         unitFactor: null,
         unitSource: null,
         diff: null, diffPercent: null, matchType: mr.matchType, matchDetail: mr.matchDetail,
-        warnings: mr.warnings || [], status: 'noprice', corrected
+        warnings: mr.warnings || [], status: 'noprice', corrected,
+        percent: am.percent
       };
     }
 
@@ -432,7 +562,8 @@ async function runBomCheck(rows, fileName) {
       originalSysUnit: converted.originalUnit,
       unitFactor: converted.factor || null,
       unitSource: converted.source || null,
-      diff, diffPercent, matchType, matchDetail, warnings, status, corrected
+      diff, diffPercent, matchType, matchDetail, warnings, status, corrected,
+      percent: am.percent
     };
   });
 
@@ -445,6 +576,9 @@ async function runBomCheck(rows, fileName) {
 
   return {
     productName, productWeight,
+    yieldRate,
+    factoryPrice,
+    netWeight,
     matchedProductCount: matchedProducts.length,
     matchedProducts: matchedProducts.map(p => ({ code: p.code, name: p.name })),
     auditMaterialCount: auditMaterials.length,

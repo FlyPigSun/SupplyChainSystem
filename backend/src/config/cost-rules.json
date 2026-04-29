@@ -74,6 +74,14 @@
       "message": "管理费用占比应不超过 2%"
     },
     {
+      "id": "rent_cost",
+      "label": "房租费",
+      "keywords": ["房租费", "房租", "租金"],
+      "minPercent": 0,
+      "maxPercent": 5,
+      "message": "房租费用占比应不超过 5%"
+    },
+    {
       "id": "profit",
       "label": "利润费",
       "keywords": ["利润", "利润费", "净利润", "毛利润"],
