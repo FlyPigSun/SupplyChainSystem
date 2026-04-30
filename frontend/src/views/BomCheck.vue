@@ -486,7 +486,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload, Document, Loading, WarningFilled, CircleCloseFilled, CircleCheckFilled } from '@element-plus/icons-vue'
+import { Upload, Document, Loading, CircleCloseFilled, CircleCheckFilled } from '@element-plus/icons-vue'
 import { useMobile } from '../composables/useMobile'
 import { bomCheckApi } from '../api'
 import CorrectionDialog from '../components/CorrectionDialog.vue'
@@ -641,12 +641,6 @@ const priceRowClass = ({ row }) => {
   if (row.corrected) return 'corrected-row'
   if (row.matchType === 'fuzzy') return 'fuzzy-row'
   if (row.matchType === 'flavor_diff') return 'flavor-diff-row'
-  return ''
-}
-
-const costRowClass = ({ row }) => {
-  if (row.status === 'warning') return 'cost-warning-row'
-  if (row.status === 'missing') return 'cost-missing-row'
   return ''
 }
 

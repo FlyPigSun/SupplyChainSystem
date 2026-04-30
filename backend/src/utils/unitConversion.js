@@ -126,9 +126,6 @@ function calcWeightInPriceUnit(totalWeight, pricePerUnit, priceUnit, spec) {
 }
 
 module.exports = {
-  UNIT_CONVERSIONS,
-  extractWeightKg,
   convertToStandardUnit,
-  parseSpecToKg,
   calcWeightInPriceUnit
 };

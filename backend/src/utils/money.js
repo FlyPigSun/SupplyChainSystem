@@ -41,6 +41,5 @@ function roundArrayFields(arr, fields) {
 
 module.exports = {
   round2,
-  roundFields,
-  roundArrayFields
+  roundFields
 };
