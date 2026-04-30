@@ -171,11 +171,7 @@
           title="未匹配到系统产品，仅显示价格核查" 
           type="warning" :closable="false" class="product-alert"
         />
-        <el-alert 
-          v-if="result.fuzzyCount > 0 || result.flavorDiffCount > 0" 
-          :title="matchWarningTitle"
-          type="warning" :closable="false" class="product-alert" show-icon
-        />
+
 
 
         <el-row :gutter="12" class="summary-row">
@@ -640,13 +636,6 @@ const priceDiffTotal = computed(() => {
   return result.value.priceDiffCount + result.value.fuzzyCount + result.value.flavorDiffCount
 })
 
-const matchWarningTitle = computed(() => {
-  if (!result.value) return ''
-  const parts = []
-  if (result.value.fuzzyCount > 0) parts.push(`${result.value.fuzzyCount} 项与原料库非同一原料，成本仅供参考`)
-  if (result.value.flavorDiffCount > 0) parts.push(`${result.value.flavorDiffCount} 项口味与原料库不一致`)
-  return parts.join('；')
-})
 
 const priceRowClass = ({ row }) => {
   if (row.corrected) return 'corrected-row'

@@ -7,6 +7,7 @@ const multer = require('multer');
 const xlsx = require('xlsx');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { getAsync, runAsync } = require('../utils/db');
+const { round2 } = require('../utils/money');
 
 const router = express.Router();
 
@@ -82,7 +83,7 @@ router.post('/', upload.single('file'), async (req, res) => {
           continue;
         }
 
-        data.price = parseFloat(data.price);
+        data.price = round2(data.price);
         data.unit = data.unit || 'kg';
         data.material_name = `${data.brand || ''} ${data.model || ''} ${data.supplier || ''}`.trim() || `item_${Date.now()}_${i}`;
 

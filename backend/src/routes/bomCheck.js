@@ -13,6 +13,7 @@ const { queryAsync, runAsync } = require('../utils/db');
 const { matchPricesForAudit } = require('../utils/priceMatcher');
 const { convertToStandardUnit } = require('../utils/unitConversion');
 const { logOperation } = require('../utils/logOperation');
+const { round2, roundFields } = require('../utils/money');
 
 const router = express.Router();
 
@@ -826,7 +827,7 @@ function parseAuditSheet(rows) {
       yieldRate = rawYieldRate !== null && rawYieldRate > 0 && rawYieldRate < 1
         ? parseFloat((rawYieldRate * 100).toFixed(2))
         : rawYieldRate;
-      factoryPrice = parseNumOrNull(r[7]);  // col7 实际出厂价
+      factoryPrice = round2(parseNumOrNull(r[7]));  // col7 实际出厂价
       netWeight = parseNumOrNull(r[9]);     // col9 净含量
       continue;
     }
@@ -840,7 +841,7 @@ function parseAuditSheet(rows) {
     if (inCostSection) {
       const costName = cell0;  // col0 = 费用名称
       const costAmountRaw = r[COL_COST];
-      const costAmount = parseFloat(costAmountRaw);
+      const costAmount = round2(parseFloat(costAmountRaw));
       const costPercent = parsePercent(r[COL_PERCENT]);
       // 收集所有有费用名称的行（包括空值），用于前端展示
       if (costName && !costName.includes('BOM') && costName !== '项目') {
@@ -869,19 +870,19 @@ function parseAuditSheet(rows) {
       // 包材区域：名称在 col0，无品牌/型号列
       name = cell0;
       brandSpec = '';
-      weightG = parseFloat(r[COL_WEIGHT]) || 0;
-      taxPrice = parseFloat(r[COL_TAX_PRICE]) || 0;
-      exTaxPrice = parseFloat(r[COL_EX_PRICE]) || 0;
-      cost = parseFloat(r[COL_COST]) || 0;
+      weightG = round2(parseFloat(r[COL_WEIGHT]) || 0);
+      taxPrice = round2(parseFloat(r[COL_TAX_PRICE]) || 0);
+      exTaxPrice = round2(parseFloat(r[COL_EX_PRICE]) || 0);
+      cost = round2(parseFloat(r[COL_COST]) || 0);
       percent = parsePercent(r[COL_PERCENT]);
     } else {
       // 普通原料区域
       name = cellName;
       brandSpec = String(r[COL_BRAND] || '').trim();
-      weightG = parseFloat(r[COL_WEIGHT]) || 0;
-      taxPrice = parseFloat(r[COL_TAX_PRICE]) || 0;
-      exTaxPrice = parseFloat(r[COL_EX_PRICE]) || 0;
-      cost = parseFloat(r[COL_COST]) || 0;
+      weightG = round2(parseFloat(r[COL_WEIGHT]) || 0);
+      taxPrice = round2(parseFloat(r[COL_TAX_PRICE]) || 0);
+      exTaxPrice = round2(parseFloat(r[COL_EX_PRICE]) || 0);
+      cost = round2(parseFloat(r[COL_COST]) || 0);
       percent = parsePercent(r[COL_PERCENT]);
     }
 
@@ -901,7 +902,7 @@ function parseAuditSheet(rows) {
   }
 
   // 以合计成本作为占比计算基数（抹零合计是独立项，不参与占比）
-  totalPrice = costBreakdown['合计成本'] || costBreakdown['抹零合计'] || 0;
+  totalPrice = round2(costBreakdown['合计成本'] || costBreakdown['抹零合计'] || 0);
 
   // 用净含量作为产品重量
   if (netWeight && netWeight > 0) {
@@ -1209,8 +1210,8 @@ async function runBomCheck(rows, fileName) {
     if (!priceInfo) {
       return {
         name: am.name, brandSpec: am.brandSpec, section: am.section,
-        auditTaxPrice: am.taxPrice, auditExTaxPrice: am.exTaxPrice,
-        auditStdPrice: parseFloat((am.taxPrice || am.exTaxPrice || 0).toFixed(4)),
+        auditTaxPrice: round2(am.taxPrice), auditExTaxPrice: round2(am.exTaxPrice),
+        auditStdPrice: round2(am.taxPrice || am.exTaxPrice || 0),
         sysPrice: null, sysSpec: null, sysBrand: null, sysModel: null,
         sysUnit: null,
         sysStandardPrice: null, sysStandardUnit: null,
@@ -1231,8 +1232,8 @@ async function runBomCheck(rows, fileName) {
     if (sysPrice == null || sysPrice === 0) {
       return {
         name: am.name, brandSpec: am.brandSpec, section: am.section,
-        auditTaxPrice: am.taxPrice, auditExTaxPrice: am.exTaxPrice,
-        auditStdPrice: parseFloat((am.taxPrice || am.exTaxPrice || 0).toFixed(4)),
+        auditTaxPrice: round2(am.taxPrice), auditExTaxPrice: round2(am.exTaxPrice),
+        auditStdPrice: round2(am.taxPrice || am.exTaxPrice || 0),
         sysPrice: null, sysSpec, sysBrand: null, sysModel: null,
         sysUnit: sysUnit || '-',
         sysStandardPrice: null, sysStandardUnit: null,
@@ -1249,11 +1250,11 @@ async function runBomCheck(rows, fileName) {
     // 对于"箱"、"袋"等包装单位，从规格中提取重量换算
     const converted = convertToStandardUnit(sysPrice, sysUnit, sysSpec);
     // 差异对比使用含税价（与核查表含税价一致）
-    const auditTaxPriceForDiff = am.taxPrice || am.exTaxPrice || 0;
+    const auditTaxPriceForDiff = round2(am.taxPrice || am.exTaxPrice || 0);
 
     // 用换算后的标准价格与核查表含税价比较
-    const standardSysPrice = converted.standardPrice !== null ? converted.standardPrice : sysPrice;
-    const diff = Math.abs(auditTaxPriceForDiff - standardSysPrice);
+    const standardSysPrice = round2(converted.standardPrice !== null ? converted.standardPrice : sysPrice);
+    const diff = round2(Math.abs(auditTaxPriceForDiff - standardSysPrice));
     const hasDiff = diff > 0.5;
     const diffPercent = auditTaxPriceForDiff > 0 ? ((diff / auditTaxPriceForDiff) * 100).toFixed(1) : null;
 
@@ -1270,17 +1271,17 @@ async function runBomCheck(rows, fileName) {
 
     return {
       name: am.name, brandSpec: am.brandSpec, section: am.section,
-      auditTaxPrice: am.taxPrice, auditExTaxPrice: am.exTaxPrice,
-      auditStdPrice: parseFloat(auditTaxPriceForDiff.toFixed(4)),
-      sysPrice, sysSpec: priceInfo.spec || '',
+      auditTaxPrice: round2(am.taxPrice), auditExTaxPrice: round2(am.exTaxPrice),
+      auditStdPrice: round2(auditTaxPriceForDiff),
+      sysPrice: round2(sysPrice), sysSpec: priceInfo.spec || '',
       sysBrand: priceInfo.brand || '', sysModel: priceInfo.model || '',
       sysUnit: sysUnit,
-      sysStandardPrice: standardSysPrice,
+      sysStandardPrice: round2(standardSysPrice),
       sysStandardUnit: converted.standardUnit || sysUnit,
       originalSysUnit: converted.originalUnit,
       unitFactor: converted.factor || null,
       unitSource: converted.source || null,
-      diff, diffPercent, matchType, matchDetail, warnings, status, corrected,
+      diff: round2(diff), diffPercent, matchType, matchDetail, warnings, status, corrected,
       percent: am.percent
     };
   });

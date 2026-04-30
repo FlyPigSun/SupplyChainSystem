@@ -7,6 +7,7 @@ const { authMiddleware } = require('../middleware/auth');
 const { queryAsync, getAsync } = require('../utils/db');
 const { matchPrices } = require('../utils/priceMatcher');
 const { calcWeightInPriceUnit } = require('../utils/unitConversion');
+const { round2 } = require('../utils/money');
 
 const router = express.Router();
 
@@ -89,7 +90,7 @@ router.post('/calculate', authMiddleware, async (req, res) => {
           pricePerKg = parseFloat(priceInfo.price);
           priceUnit = priceInfo.unit || 'kg';
           const weightInPriceUnit = calcWeightInPriceUnit(totalWeight, pricePerKg, priceUnit, priceInfo.spec);
-          cost = weightInPriceUnit !== null ? weightInPriceUnit * pricePerKg : null;
+          cost = weightInPriceUnit !== null ? round2(weightInPriceUnit * pricePerKg) : null;
         }
 
         results.push({
@@ -105,7 +106,7 @@ router.post('/calculate', authMiddleware, async (req, res) => {
           unitWeight,
           totalWeight,
           unit: m.unit || 'g',
-          price: pricePerKg,
+          price: round2(pricePerKg),
           priceUnit,
           cost,
           matchType,

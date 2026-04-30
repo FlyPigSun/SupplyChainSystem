@@ -5,6 +5,7 @@
 const express = require('express');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 const { queryAsync, getAsync, runAsync } = require('../utils/db');
+const { round2 } = require('../utils/money');
 
 const router = express.Router();
 
@@ -25,6 +26,10 @@ router.get('/', authMiddleware, async (req, res) => {
     sql += ' ORDER BY category, brand, model';
     
     const prices = await queryAsync(sql, params);
+    // 金额统一保留两位小数
+    for (const p of prices) {
+      if (p.price != null) p.price = round2(p.price);
+    }
     res.json({ ok: true, prices });
   } catch (err) {
     res.status(500).json({ ok: false, msg: '查询失败' });
@@ -53,7 +58,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
       await runAsync(
         `UPDATE material_prices SET category = ?, spec = ?, unit = ?, price = ?, remark = ?, updated_at = CURRENT_TIMESTAMP 
          WHERE id = ?`,
-        [category || '', spec || '', unit || 'kg', parseFloat(price), remark || '', existing.id]
+        [category || '', spec || '', unit || 'kg', round2(price), remark || '', existing.id]
       );
       await runAsync(
         'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',
@@ -65,7 +70,7 @@ router.post('/', authMiddleware, adminMiddleware, async (req, res) => {
       await runAsync(
         `INSERT INTO material_prices (material_name, category, brand, model, supplier, spec, unit, price, remark) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [materialName, category || '', brand || '', model || '', supplier || '', spec || '', unit || 'kg', parseFloat(price), remark || '']
+        [materialName, category || '', brand || '', model || '', supplier || '', spec || '', unit || 'kg', round2(price), remark || '']
       );
       await runAsync(
         'INSERT INTO operation_logs (operator, action, detail) VALUES (?, ?, ?)',

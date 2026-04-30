@@ -52,14 +52,14 @@ function convertToStandardUnit(price, unit, spec) {
 
   if (factor !== null && factor !== undefined) {
     const stdUnit = (/^[ml]|毫升/i.test(u) ? 'L' : 'kg');
-    const stdPrice = Math.round((price / factor) * 1000000) / 1000000;
+    const stdPrice = Math.round((price / factor) * 100) / 100;
     return { originalPrice: price, originalUnit: unit, standardPrice: stdPrice, standardUnit: stdUnit, factor };
   }
 
   // 非标准单位（箱/袋/桶等），尝试从规格提取重量
   const weightKg = extractWeightKg(spec);
   if (weightKg && weightKg > 0) {
-    const stdPrice = Math.round((price / weightKg) * 1000000) / 1000000;
+    const stdPrice = Math.round((price / weightKg) * 100) / 100;
     return {
       originalPrice: price,
       originalUnit: unit || '-',
