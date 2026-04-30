@@ -2,22 +2,6 @@
   "description": "成本核查预警规则（修改后立即生效，无需重启服务）。支持占比区间(%)和金额绝对值区间(元)双重检查。",
   "rules": [
     {
-      "id": "food_cost",
-      "label": "食材成本",
-      "keywords": ["食材成本", "原料成本", "原材料成本"],
-      "minPercent": 40,
-      "maxPercent": 50,
-      "message": "食材成本占比应在 40%-50% 之间"
-    },
-    {
-      "id": "packaging_cost",
-      "label": "包材成本",
-      "keywords": ["包材成本", "包材费", "包装成本"],
-      "minPercent": 8,
-      "maxPercent": 15,
-      "message": "包材成本占比应在 8%-15% 之间"
-    },
-    {
       "id": "product_total",
       "label": "成品合计",
       "keywords": ["成品合计", "成品总计", "成品总成本"],
@@ -88,6 +72,22 @@
       "minPercent": 5,
       "maxPercent": null,
       "message": "利润占比应不低于 5%"
+    },
+    {
+      "id": "total_cost",
+      "label": "合计成本",
+      "keywords": ["合计成本", "成本合计"],
+      "minPercent": null,
+      "maxPercent": null,
+      "message": ""
+    },
+    {
+      "id": "round_cost",
+      "label": "抹零合计",
+      "keywords": ["抹零合计", "抹零"],
+      "minPercent": null,
+      "maxPercent": null,
+      "message": ""
     }
   ]
 }
