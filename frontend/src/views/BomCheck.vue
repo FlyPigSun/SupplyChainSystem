@@ -332,12 +332,7 @@
               <span v-else>-</span>
             </template>
           </el-table-column>
-          <el-table-column label="Excel占比" width="90">
-            <template #default="{ row }">
-              <span v-if="row.percent !== null && row.percent !== undefined">{{ row.percent.toFixed(1) }}%</span>
-              <span v-else class="no-data">-</span>
-            </template>
-          </el-table-column>
+
           <el-table-column label="原料库含税价格" width="140">
             <template #default="{ row }">
               <div v-if="row.sysPrice !== null">
@@ -356,7 +351,7 @@
                 <el-tag v-else-if="row.matchType === 'exact'" type="success" size="small">精确匹配</el-tag>
                 <el-tag v-else-if="row.matchType === 'brand_model'" size="small">品牌匹配</el-tag>
                 <el-tag v-else-if="row.matchType === 'flavor_diff'" type="warning" size="small">口味不同</el-tag>
-                <el-tag v-else-if="row.matchType === 'fuzzy'" type="danger" size="small">非同一原料</el-tag>
+                <el-tag v-else-if="row.matchType === 'fuzzy'" type="warning" size="small">非同一原料</el-tag>
                 <el-tag v-else-if="row.matchType === null" type="info" size="small">未匹配</el-tag>
                 <span v-if="row.sysBrand" class="match-detail">{{ row.sysBrand }} {{ row.sysModel }}</span>
               </div>
@@ -377,9 +372,9 @@
             <template #default="{ row }">
               <el-tag v-if="row.corrected" type="success" size="small">已修正</el-tag>
               <el-tag v-else-if="row.status === 'ok'" type="success" size="small">一致</el-tag>
-              <el-tag v-else-if="row.status === 'diff'" type="warning" size="small">价格不符</el-tag>
+              <el-tag v-else-if="row.status === 'diff'" type="danger" size="small">价格不符</el-tag>
               <el-tag v-else-if="row.status === 'flavor_diff'" type="warning" size="small">口味不同</el-tag>
-              <el-tag v-else-if="row.status === 'fuzzy'" type="danger" size="small">仅供参考</el-tag>
+              <el-tag v-else-if="row.status === 'fuzzy'" type="warning" size="small">仅供参考</el-tag>
               <el-tag v-else-if="row.status === 'noprice'" type="info" size="small">未匹配</el-tag>
             </template>
           </el-table-column>
@@ -416,13 +411,7 @@
                   <span v-else>-</span>
                 </span>
               </div>
-              <div class="mobile-card-row">
-                <span class="mobile-card-label">Excel占比</span>
-                <span class="mobile-card-value">
-                  <template v-if="row.percent !== null && row.percent !== undefined">{{ row.percent.toFixed(1) }}%</template>
-                  <span v-else class="no-data">-</span>
-                </span>
-              </div>
+
               <div class="mobile-card-row">
                 <span class="mobile-card-label">原料库含税价格</span>
                 <span class="mobile-card-value">
@@ -641,6 +630,7 @@ const priceDiffTotal = computed(() => {
 
 const priceRowClass = ({ row }) => {
   if (row.corrected) return 'corrected-row'
+  if (row.status === 'diff') return 'diff-row'
   if (row.matchType === 'fuzzy') return 'fuzzy-row'
   if (row.matchType === 'flavor_diff') return 'flavor-diff-row'
   return ''
@@ -922,9 +912,11 @@ const onCorrectionSaved = async () => {
 
 <style>
 /* 非 scoped 样式：el-table 行类名无法被 scoped CSS 匹配 */
-.fuzzy-row { background-color: #fef0f0 !important; }
-.flavor-diff-row { background-color: #fdf6ec !important; }
-.corrected-row { background-color: #f0f9eb !important; }
+/* 价格差异（diff）= 红色，模糊匹配（fuzzy）= 黄色，口味差异（flavor_diff）= 黄色，已修正 = 绿色 */
+.diff-row td.el-table__cell { background-color: #fef0f0 !important; }
+.fuzzy-row td.el-table__cell { background-color: #fdf6ec !important; }
+.flavor-diff-row td.el-table__cell { background-color: #fdf6ec !important; }
+.corrected-row td.el-table__cell { background-color: #f0f9eb !important; }
 /* 覆盖 el-table stripe 样式（stripe 设置的是 td 背景，tr 背景会被 td 覆盖） */
 .bom-cost-table .el-table__row.bom-cost-warning-row td.el-table__cell { background-color: #fef0f0 !important; }
 .bom-cost-table .el-table__row.bom-cost-missing-row td.el-table__cell { background-color: #fdf6ec !important; }
