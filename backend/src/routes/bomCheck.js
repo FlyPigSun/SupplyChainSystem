@@ -383,10 +383,10 @@ function validateTemplateData(rows, headerDetails) {
 
   // 检查金额公式
   // 产品组成：金额 ≈ 重量(g) × 含税单价(元/kg) / 1000
-  // 包材组成：金额 ≈ 数量 × 含税单价（单价已是单个价格，不除1000）
-  function checkAmountFormula(weight, taxPrice, amount, rowNum, prefix, isPackaging = false) {
+  // 包材/单个成品组成：金额 ≈ 数量/组成 × 单价（不除1000）
+  function checkAmountFormula(weight, unitPrice, amount, rowNum, prefix, noDivideBy1000 = false, priceLabel = '含税单价') {
     const w = parseNumberValue(weight);
-    const p = parseNumberValue(taxPrice);
+    const p = parseNumberValue(unitPrice);
     const a = parseNumberValue(amount);
     if (w === null || p === null || a === null) return; // 有空值，不检查公式
 
@@ -396,7 +396,7 @@ function validateTemplateData(rows, headerDetails) {
     // 金额为0时跳过公式校验（用户允许金额为0，如免费样品）
     if (a === 0) return;
 
-    const expected = isPackaging ? w * p : w * p / 1000;
+    const expected = noDivideBy1000 ? w * p : w * p / 1000;
     const absDiff = Math.abs(a - expected);
     const relDiff = expected !== 0 ? absDiff / Math.abs(expected) : (a !== 0 ? 1 : 0);
 
@@ -405,7 +405,7 @@ function validateTemplateData(rows, headerDetails) {
     const REL_TOLERANCE = 0.05;
 
     if (absDiff > ABS_TOLERANCE && relDiff > REL_TOLERANCE) {
-      const formulaDesc = isPackaging ? '数量×含税单价' : '重量×含税单价/1000';
+      const formulaDesc = noDivideBy1000 ? `数量×${priceLabel}` : `重量×${priceLabel}/1000`;
       errors.push(
         `${prefix}第${rowNum}行「金额」公式异常：金额=${a.toFixed(4)}，但 ${formulaDesc}=${expected.toFixed(4)}，` +
         `相差 ${absDiff.toFixed(4)}（${(relDiff * 100).toFixed(1)}%）`
@@ -568,6 +568,9 @@ function validateTemplateData(rows, headerDetails) {
       const nonEmpty = getNonEmptyFields(r, fieldMap);
       if (nonEmpty.length === 0) continue;
 
+      // 跳过汇总行（成品合计等只有金额字段，不要求其他列非空）
+      if (['成品合计', '合计成本', '合计'].includes(cell0)) continue;
+
       // (a) 非空校验
       const missing = checkAllNonEmpty(r, fieldMap);
       if (missing.length > 0) {
@@ -579,6 +582,8 @@ function validateTemplateData(rows, headerDetails) {
       checkRange(r[COL_WEIGHT], 0, null, '组成', i + 1, '单个成品组成'); // >0
       checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '单个成品组成'); // ≥0
       checkPercentRange(r[COL_PERCENT], '百分比', i + 1, '单个成品组成');
+      // 金额公式校验：组成(g) × 不含税单价 = 金额（不除1000）
+      checkAmountFormula(r[COL_WEIGHT], r[COL_EX_PRICE], r[COL_COST], i + 1, '单个成品组成', true, '不含税单价');
     }
   }
 
