@@ -570,8 +570,8 @@ function validateTemplateData(rows, headerDetails) {
       const nonEmpty = getNonEmptyFields(r, fieldMap);
       if (nonEmpty.length === 0) continue;
 
-      // 跳过汇总行（成品合计等只有金额字段，不要求其他列非空）
-      if (['成品合计', '合计成本', '合计'].includes(cell0)) continue;
+      // 跳过汇总行（胚体成本/成型成本/冷加工成本/包材成本/成品合计等只有金额字段，不要求其他列非空）
+      if (['胚体成本', '成型成本', '冷加工成本', '包材成本', '成品合计', '合计成本', '合计'].includes(cell0)) continue;
 
       // (a) 非空校验
       const missing = checkAllNonEmpty(r, fieldMap);
