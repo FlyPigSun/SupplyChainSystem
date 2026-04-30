@@ -176,16 +176,7 @@
           :title="matchWarningTitle"
           type="warning" :closable="false" class="product-alert" show-icon
         />
-        <el-alert
-          v-if="result.correctedCount > 0"
-          :title="`${result.correctedCount} 项原料已应用人工修正匹配，标有「已修正」标签`"
-          type="success" :closable="false" class="product-alert" show-icon
-        />
-        <el-alert
-          v-if="result.costWarnings && result.costWarnings.length > 0"
-          :title="`成本占比异常：${result.costWarnings.map(w => w.label + ' ' + (w.percent !== null ? w.percent + '%' : '缺失')).join('、')}`"
-          type="error" :closable="false" class="product-alert" show-icon
-        />
+
 
         <el-row :gutter="12" class="summary-row">
         <el-col :xs="12" :sm="6">
@@ -246,7 +237,7 @@
           <el-table-column prop="name" label="项目" width="100" />
           <el-table-column label="金额" width="100">
             <template #default="{ row }">
-              <span v-if="row.amount !== null && row.amount !== undefined">¥{{ row.amount.toFixed(5) }}</span>
+              <span v-if="row.amount !== null && row.amount !== undefined">¥{{ row.amount.toFixed(2) }}</span>
               <span v-else class="no-data">-</span>
             </template>
           </el-table-column>
@@ -285,7 +276,7 @@
               <div class="mobile-card-row">
                 <span class="mobile-card-label">金额</span>
                 <span class="mobile-card-value">
-                  <template v-if="row.amount !== null && row.amount !== undefined">¥{{ row.amount.toFixed(5) }}</template>
+                  <template v-if="row.amount !== null && row.amount !== undefined">¥{{ row.amount.toFixed(2) }}</template>
                   <span v-else class="no-data">-</span>
                 </span>
               </div>
