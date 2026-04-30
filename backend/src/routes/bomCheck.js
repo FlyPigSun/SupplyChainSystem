@@ -724,14 +724,16 @@ function parseAuditSheet(rows) {
       continue;
     }
 
-    // 识别分节（动态：col1 有值、col2 为空、不是汇总/表头关键字）
+    // 识别分节（动态：A列工艺大类 / B列组成名，可能与数据行合并）
+    const knownSectionKeywords = ['成本核算', '产品组成', 'BOM成本合计', '单个产品包材组成', '单个成品组成', '单个产品包材成本', '胚体成本', '成型成本', '冷加工成本', '包材成本', '成品合计', '加总', '每克成本', '工艺分项', '项目', '合计成本', '抹零合计', '产品名称'];
+    // (1) A列有值且不是已知关键字 → 设为工艺大类section
+    if (cell0 && !knownSectionKeywords.includes(cell0) && !inPackagingSection && !inCostSection && !skipSection) {
+      currentSection = cell0;
+    }
+    // (2) B列有值且不是汇总关键字 → 设为组成section（覆盖A列，更细粒度）
     const isSummaryKeyword = ['合计', '每克成本', '组成'].includes(cell1);
-    if (cell1 && !cellName && !isSummaryKeyword && !inPackagingSection && !inCostSection && !skipSection) {
+    if (cell1 && !isSummaryKeyword && !inPackagingSection && !inCostSection && !skipSection) {
       currentSection = cell1;
-      inPackagingSection = false;
-      inCostSection = false;
-      skipSection = false;
-      continue;
     }
 
     // 提取品名和新增字段
@@ -1022,8 +1024,9 @@ async function runBomCheck(rows, fileName) {
   }
 
   const formulaDiffs = [];
-  const doughMaterials = auditMaterials.filter(m => m.section === '面团' || m.section === '');
-  doughMaterials.forEach(am => {
+  // 配方比对覆盖所有产品组成区域的原料（排除包材）
+  const formulaMaterials = auditMaterials.filter(m => !m.isPackaging);
+  formulaMaterials.forEach(am => {
     const sysRec = systemMaterials.find(r =>
       (r.unified_name && (r.unified_name === am.name || r.unified_name.includes(am.name) || am.name.includes(r.unified_name))) ||
       (r.material_name && (r.material_name === am.name || r.material_name.includes(am.name) || am.name.includes(r.material_name)))
@@ -1037,7 +1040,7 @@ async function runBomCheck(rows, fileName) {
     }
   });
   systemMaterials.forEach(r => {
-    const found = doughMaterials.find(am =>
+    const found = formulaMaterials.find(am =>
       (r.unified_name && (r.unified_name === am.name || r.unified_name.includes(am.name) || am.name.includes(r.unified_name))) ||
       (r.material_name && (r.material_name === am.name || r.material_name.includes(am.name) || am.name.includes(r.material_name)))
     );
