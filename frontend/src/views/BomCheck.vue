@@ -378,7 +378,7 @@
               <el-tag v-else-if="row.status === 'noprice'" type="info" size="small">未匹配</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="110" fixed="right">
+          <el-table-column label="操作" width="140" fixed="right">
             <template #default="{ row }">
               <el-button link type="primary" size="small" @click="openCorrectionDialog(row)">修正原料库匹配</el-button>
             </template>
