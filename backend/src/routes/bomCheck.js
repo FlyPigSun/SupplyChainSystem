@@ -901,33 +901,16 @@ function parseAuditSheet(rows) {
     }
   }
 
-  // 合并相同（名称+品牌规格）的原料行
-  const materialMap = new Map();
+  // 去重：相同（名称+品牌规格）的原料仅保留第一次出现的
+  const seen = new Set();
+  const dedupedMaterials = [];
   for (const m of materials) {
     const key = `${m.name}||${m.brandSpec || ''}`;
-    if (materialMap.has(key)) {
-      const existing = materialMap.get(key);
-      existing.weightG = round2(existing.weightG + m.weightG);
-      existing.cost = round2(existing.cost + m.cost);
-      // 价格取加权平均（按重量加权）
-      const totalWeight = existing.weightG + m.weightG;
-      if (totalWeight > 0) {
-        if (m.taxPrice > 0) {
-          existing.taxPrice = round2((existing.taxPrice * existing.weightG + m.taxPrice * m.weightG) / totalWeight);
-        }
-        if (m.exTaxPrice > 0) {
-          existing.exTaxPrice = round2((existing.exTaxPrice * existing.weightG + m.exTaxPrice * m.weightG) / totalWeight);
-        }
-      }
-      // percent 累加（简单加和，后续不再使用）
-      if (m.percent !== null) {
-        existing.percent = (existing.percent || 0) + m.percent;
-      }
-    } else {
-      materialMap.set(key, { ...m });
+    if (!seen.has(key)) {
+      seen.add(key);
+      dedupedMaterials.push(m);
     }
   }
-  const mergedMaterials = Array.from(materialMap.values());
 
   // 以合计成本作为占比计算基数（抹零合计是独立项，不参与占比）
   totalPrice = round2(costBreakdown['合计成本'] || costBreakdown['抹零合计'] || 0);
@@ -938,7 +921,7 @@ function parseAuditSheet(rows) {
   }
 
   return {
-    materials: mergedMaterials,
+    materials: dedupedMaterials,
     productName,
     productWeight,
     yieldRate,
