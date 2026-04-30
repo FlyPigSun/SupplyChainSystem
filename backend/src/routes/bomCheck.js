@@ -381,20 +381,22 @@ function validateTemplateData(rows, headerDetails) {
     return true;
   }
 
-  // 检查金额公式：金额 ≈ 重量(g) × 含税单价(元/kg) / 1000
-  function checkAmountFormula(weight, taxPrice, amount, rowNum, prefix) {
+  // 检查金额公式
+  // 产品组成：金额 ≈ 重量(g) × 含税单价(元/kg) / 1000
+  // 包材组成：金额 ≈ 数量 × 含税单价（单价已是单个价格，不除1000）
+  function checkAmountFormula(weight, taxPrice, amount, rowNum, prefix, isPackaging = false) {
     const w = parseNumberValue(weight);
     const p = parseNumberValue(taxPrice);
     const a = parseNumberValue(amount);
     if (w === null || p === null || a === null) return; // 有空值，不检查公式
 
-    // 重量必须 > 0 才能检查公式
+    // 重量/数量必须 > 0 才能检查公式
     if (w <= 0) return;
 
     // 金额为0时跳过公式校验（用户允许金额为0，如免费样品）
     if (a === 0) return;
 
-    const expected = w * p / 1000;
+    const expected = isPackaging ? w * p : w * p / 1000;
     const absDiff = Math.abs(a - expected);
     const relDiff = expected !== 0 ? absDiff / Math.abs(expected) : (a !== 0 ? 1 : 0);
 
@@ -403,8 +405,9 @@ function validateTemplateData(rows, headerDetails) {
     const REL_TOLERANCE = 0.05;
 
     if (absDiff > ABS_TOLERANCE && relDiff > REL_TOLERANCE) {
+      const formulaDesc = isPackaging ? '数量×含税单价' : '重量×含税单价/1000';
       errors.push(
-        `${prefix}第${rowNum}行「金额」公式异常：金额=${a.toFixed(4)}，但 重量×含税单价/1000=${expected.toFixed(4)}，` +
+        `${prefix}第${rowNum}行「金额」公式异常：金额=${a.toFixed(4)}，但 ${formulaDesc}=${expected.toFixed(4)}，` +
         `相差 ${absDiff.toFixed(4)}（${(relDiff * 100).toFixed(1)}%）`
       );
     }
@@ -533,8 +536,8 @@ function validateTemplateData(rows, headerDetails) {
       checkRange(r[COL_TAX_PRICE], 0, null, '含税单价', i + 1, '包材组成'); // ≥0
       checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '包材组成'); // ≥0
       checkPercentRange(r[COL_PERCENT], '百分比', i + 1, '包材组成');
-      // 金额公式校验（包材也用同样的公式：数量 × 含税单价 / 1000）
-      checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '包材组成');
+      // 金额公式校验（包材：数量 × 含税单价，单价是单个价格，不除1000）
+      checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '包材组成', true);
     }
   }
 
