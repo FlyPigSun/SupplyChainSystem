@@ -230,106 +230,65 @@
         </el-col>
       </el-row>
 
-      <!-- 成本占比分析 -->
-      <el-card v-if="result.costItems && result.costItems.length > 0" shadow="never" class="result-card">
+      <!-- BOM成本合计 -->
+      <el-card v-if="result.bomCostSummary && result.bomCostSummary.length > 0" shadow="never" class="result-card">
         <template #header>
           <div class="card-header">
-            <span class="card-header-title">成本占比分析</span>
+            <span class="card-header-title">BOM成本合计</span>
             <div class="card-header-tags">
               <el-tag v-if="!result.costWarnings || result.costWarnings.length === 0" type="success" size="small">占比正常</el-tag>
               <el-tag v-else type="danger" size="small">{{ result.costWarnings.length }} 项异常</el-tag>
-              <span v-if="result.totalPrice" class="cost-total">基数：¥{{ result.totalPrice.toFixed(2) }}</span>
             </div>
           </div>
         </template>
-        
+
         <!-- PC端表格 -->
-        <el-table v-if="!isMobile" :data="result.costItems" stripe size="small" :row-class-name="costRowClass">
-          <el-table-column prop="label" label="费用项" width="120" />
-          <el-table-column label="Excel 匹配" width="120">
+        <el-table v-if="!isMobile" :data="result.bomCostSummary" stripe size="small">
+          <el-table-column prop="name" label="项目" min-width="120" />
+          <el-table-column label="金额" width="110">
             <template #default="{ row }">
-              <span>{{ row.excelKey }}</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="金额" width="100">
-            <template #default="{ row }">
-              <span v-if="row.amount !== null && row.amount !== undefined">¥{{ row.amount.toFixed(2) }}</span>
+              <span v-if="row.amount !== null && row.amount !== undefined">¥{{ row.amount.toFixed(5) }}</span>
               <span v-else class="no-data">-</span>
             </template>
           </el-table-column>
-          <el-table-column label="占比" width="100">
+          <el-table-column label="百分比" width="100">
             <template #default="{ row }">
-              <span v-if="row.percent !== null" :class="{ 'diff-amount': row.status === 'warning' }">
-                {{ row.percent.toFixed(1) }}%
-              </span>
+              <span v-if="row.percent !== null">{{ row.percent.toFixed(2) }}%</span>
               <span v-else class="no-data">-</span>
             </template>
           </el-table-column>
-          <el-table-column label="合理区间" width="130">
-            <template #default="{ row }">
-              <span v-if="row.min !== null && row.max !== null">{{ row.min }}% ~ {{ row.max }}%</span>
-              <span v-else-if="row.min !== null">≥ {{ row.min }}%</span>
-              <span v-else-if="row.max !== null">≤ {{ row.max }}%</span>
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="100" fixed="right">
-            <template #default="{ row }">
-              <el-tag v-if="row.status === 'ok'" type="success" size="small">正常</el-tag>
-              <el-tag v-else-if="row.status === 'warning'" type="danger" size="small">异常</el-tag>
-              <el-tag v-else-if="row.status === 'missing'" type="warning" size="small">缺失</el-tag>
-            </template>
-          </el-table-column>
+          <el-table-column prop="remark" label="备注" min-width="140" />
         </el-table>
-        
+
         <!-- 移动端卡片 -->
         <div v-else class="mobile-cards">
-          <div v-for="(row, idx) in result.costItems" :key="idx" class="mobile-card" :class="{ 'mobile-card-warning': row.status === 'warning', 'mobile-card-missing': row.status === 'missing' }">
+          <div v-for="(row, idx) in result.bomCostSummary" :key="idx" class="mobile-card">
             <div class="mobile-card-header">
-              <div class="mobile-card-title">{{ row.label }}</div>
-              <el-tag v-if="row.status === 'ok'" type="success" size="small">正常</el-tag>
-              <el-tag v-else-if="row.status === 'warning'" type="danger" size="small">异常</el-tag>
-              <el-tag v-else-if="row.status === 'missing'" type="warning" size="small">缺失</el-tag>
+              <div class="mobile-card-title">{{ row.name }}</div>
             </div>
             <div class="mobile-card-body">
               <div class="mobile-card-row">
-                <span class="mobile-card-label">Excel 匹配</span>
-                <span class="mobile-card-value">{{ row.excelKey || '-' }}</span>
-              </div>
-              <div class="mobile-card-row">
                 <span class="mobile-card-label">金额</span>
                 <span class="mobile-card-value">
-                  <template v-if="row.amount !== null && row.amount !== undefined">¥{{ row.amount.toFixed(2) }}</template>
+                  <template v-if="row.amount !== null && row.amount !== undefined">¥{{ row.amount.toFixed(5) }}</template>
                   <span v-else class="no-data">-</span>
                 </span>
               </div>
               <div class="mobile-card-row">
-                <span class="mobile-card-label">占比</span>
-                <span class="mobile-card-value" :class="{ 'diff-amount': row.status === 'warning' }">
-                  <template v-if="row.percent !== null">{{ row.percent.toFixed(1) }}%</template>
-                  <span v-else class="no-data">-</span>
-                </span>
-              </div>
-              <div class="mobile-card-row">
-                <span class="mobile-card-label">Excel占比</span>
+                <span class="mobile-card-label">百分比</span>
                 <span class="mobile-card-value">
-                  <template v-if="row.percent !== null && row.percent !== undefined">{{ row.percent.toFixed(1) }}%</template>
+                  <template v-if="row.percent !== null">{{ row.percent.toFixed(2) }}%</template>
                   <span v-else class="no-data">-</span>
                 </span>
               </div>
               <div class="mobile-card-row">
-                <span class="mobile-card-label">合理区间</span>
-                <span class="mobile-card-value">
-                  <template v-if="row.min !== null && row.max !== null">{{ row.min }}% ~ {{ row.max }}%</template>
-                  <template v-else-if="row.min !== null">≥ {{ row.min }}%</template>
-                  <template v-else-if="row.max !== null">≤ {{ row.max }}%</template>
-                  <span v-else>-</span>
-                </span>
+                <span class="mobile-card-label">备注</span>
+                <span class="mobile-card-value">{{ row.remark || '-' }}</span>
               </div>
             </div>
           </div>
         </div>
-        
+
         <div v-if="result.costWarnings && result.costWarnings.length > 0" class="cost-warning-list">
           <div v-for="w in result.costWarnings" :key="w.id" class="cost-warning-item">
             <el-icon color="#f56c6c"><WarningFilled /></el-icon>

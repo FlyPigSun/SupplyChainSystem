@@ -849,6 +849,7 @@ function parseAuditSheet(rows) {
           amount: isNaN(costAmount) ? null : costAmount,
           rawValue: costAmountRaw !== undefined ? String(costAmountRaw).trim() : '',
           percent: costPercent,
+          remark: String(r[COL_PERCENT + 1] || '').trim(),
         });
         // 同时构建 costBreakdown 对象（仅有效数值）
         if (!isNaN(costAmount)) {
@@ -948,6 +949,7 @@ async function runBomCheck(rows, fileName) {
       totalPrice: 0,
       costItems: [],
       costWarnings: headerValidation.errors.map(msg => ({ type: 'error', message: msg })),
+      bomCostSummary: [],
       _validationErrors: headerValidation.errors,
       _validationDetails: headerValidation.details,
       _templateCheck: {
@@ -985,6 +987,7 @@ async function runBomCheck(rows, fileName) {
       totalPrice: 0,
       costItems: [],
       costWarnings: dataValidation.errors.map(msg => ({ type: 'error', message: msg })),
+      bomCostSummary: [],
       _validationErrors: dataValidation.errors,
       _validationDetails: headerValidation.details,
       _templateCheck: {
@@ -1101,6 +1104,22 @@ async function runBomCheck(rows, fileName) {
       costItems.push(item);
     }
   }
+
+  // BOM成本合计固定行顺序（与新模板Excel输出格式一致）
+  const bomCostFixedOrder = [
+    '成品合计', '人工费用', '水电', '物流', '税收',
+    '折旧费', '管理费', '利润费', '房租费', '合计成本', '抹零合计'
+  ];
+
+  const bomCostSummary = bomCostFixedOrder.map(name => {
+    const row = costRows.find(r => r.name === name);
+    return {
+      name,
+      amount: row ? row.amount : null,
+      percent: row ? row.percent : null,
+      remark: row ? row.remark : ''
+    };
+  });
 
   let matchedProducts = await queryAsync('SELECT id, code, name FROM products WHERE name = ?', [productName]);
   if (matchedProducts.length === 0) {
@@ -1286,6 +1305,7 @@ async function runBomCheck(rows, fileName) {
     formulaDiffCount, priceDiffCount, fuzzyCount, flavorDiffCount, noPriceCount, correctedCount,
     formulaDiffs, priceDiffs,
     costBreakdown, costRows, totalPrice, costItems, costWarnings,
+    bomCostSummary,
     _encodingIssue: hasEncodingIssue,
     _templateCheck: {
       passed: true,
