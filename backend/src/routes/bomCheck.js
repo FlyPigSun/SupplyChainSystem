@@ -1051,8 +1051,8 @@ async function runBomCheck(rows, fileName) {
       let pctWarning = false;
       let pctMsg = '';
       if (percent !== null) {
-        const pctMin = rule.minPercent ?? rule.min;
-        const pctMax = rule.maxPercent ?? rule.max;
+        const pctMin = rule.minPercent !== undefined ? rule.minPercent : rule.min;
+        const pctMax = rule.maxPercent !== undefined ? rule.maxPercent : rule.max;
         const minOk = pctMin === null || percent >= pctMin;
         const maxOk = pctMax === null || percent <= pctMax;
         if (!minOk || !maxOk) {

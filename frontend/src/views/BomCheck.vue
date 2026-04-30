@@ -925,7 +925,7 @@ const onCorrectionSaved = async () => {
 .fuzzy-row { background-color: #fef0f0 !important; }
 .flavor-diff-row { background-color: #fdf6ec !important; }
 .corrected-row { background-color: #f0f9eb !important; }
-/* 提高选择器优先级，覆盖 el-table stripe 样式 */
-.bom-cost-table .el-table__row.bom-cost-warning-row { background-color: #fef0f0 !important; }
-.bom-cost-table .el-table__row.bom-cost-missing-row { background-color: #fdf6ec !important; }
+/* 覆盖 el-table stripe 样式（stripe 设置的是 td 背景，tr 背景会被 td 覆盖） */
+.bom-cost-table .el-table__row.bom-cost-warning-row td.el-table__cell { background-color: #fef0f0 !important; }
+.bom-cost-table .el-table__row.bom-cost-missing-row td.el-table__cell { background-color: #fdf6ec !important; }
 </style>
