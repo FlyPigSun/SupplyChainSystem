@@ -793,11 +793,6 @@ const onCorrectionSaved = async () => {
 .sys-price-original { font-size: 12px; color: #86909c; }
 .sys-price-converted { font-size: 14px; color: #1d2129; font-weight: 600; margin-top: 2px; }
 .unit-source-hint { color: #909399; font-size: 10px; font-weight: normal; }
-:::deep(.fuzzy-row) { background-color: #fef0f0 !important; }
-:::deep(.flavor-diff-row) { background-color: #fdf6ec !important; }
-:::deep(.corrected-row) { background-color: #f0f9eb !important; }
-:::deep(.cost-warning-row) { background-color: #fef0f0 !important; }
-:::deep(.cost-missing-row) { background-color: #fdf6ec !important; }
 .cost-total { font-size: 12px; color: #86909c; margin-left: 8px; }
 .cost-warning-list { margin-top: 12px; padding: 10px 14px; background: #fef0f0; border-radius: 6px; }
 .cost-warning-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #f56c6c; line-height: 1.8; }
@@ -932,16 +927,19 @@ const onCorrectionSaved = async () => {
 .bom-cost-card .bom-cost-table {
   width: 100%;
 }
-.bom-cost-card :deep(.bom-cost-warning-row) {
-  background-color: #fef0f0 !important;
-}
-.bom-cost-card :deep(.bom-cost-missing-row) {
-  background-color: #fdf6ec !important;
-}
 .status-msg {
   font-size: 11px;
   color: #f56c6c;
   margin-top: 2px;
   line-height: 1.3;
 }
+</style>
+
+<style>
+/* 非 scoped 样式：el-table 行类名无法被 scoped CSS 匹配 */
+.fuzzy-row { background-color: #fef0f0 !important; }
+.flavor-diff-row { background-color: #fdf6ec !important; }
+.corrected-row { background-color: #f0f9eb !important; }
+.bom-cost-warning-row { background-color: #fef0f0 !important; }
+.bom-cost-missing-row { background-color: #fdf6ec !important; }
 </style>
