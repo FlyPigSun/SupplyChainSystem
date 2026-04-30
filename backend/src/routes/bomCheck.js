@@ -570,22 +570,52 @@ function validateTemplateData(rows, headerDetails) {
       const nonEmpty = getNonEmptyFields(r, fieldMap);
       if (nonEmpty.length === 0) continue;
 
-      // 跳过汇总行（胚体成本/成型成本/冷加工成本/包材成本/成品合计等只有金额字段，不要求其他列非空）
-      if (['胚体成本', '成型成本', '冷加工成本', '包材成本', '成品合计', '合计成本', '合计'].includes(cell0)) continue;
+      // 区分汇总行和普通行
+      const summaryWithPrice = ['胚体成本', '成型成本', '冷加工成本', '包材成本'];
+      const summaryOnlyAmount = ['成品合计', '合计成本', '合计'];
 
-      // (a) 非空校验
-      const missing = checkAllNonEmpty(r, fieldMap);
-      if (missing.length > 0) {
-        errors.push(`单个成品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
-        continue;
+      if (summaryWithPrice.includes(cell0)) {
+        // (a) 汇总行非空校验：只要求不含税单价和金额
+        const summaryFieldMap = {
+          '不含税单价': COL_EX_PRICE,
+          '金额': COL_COST
+        };
+        const missing = checkAllNonEmpty(r, summaryFieldMap);
+        if (missing.length > 0) {
+          errors.push(`单个成品组成第${i + 1}行(${cell0})数据不完整，缺少：${missing.join('、')}`);
+          continue;
+        }
+
+        // (b) 汇总行合法性校验：不含税单价 ≥ 0，金额 = 不含税单价
+        checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '单个成品组成');
+        checkAmountFormula(1, r[COL_EX_PRICE], r[COL_COST], i + 1, `单个成品组成(${cell0})`, true, '不含税单价');
+
+      } else if (summaryOnlyAmount.includes(cell0)) {
+        // (a) 成品合计等：只要求金额非空
+        const amountFieldMap = {
+          '金额': COL_COST
+        };
+        const missing = checkAllNonEmpty(r, amountFieldMap);
+        if (missing.length > 0) {
+          errors.push(`单个成品组成第${i + 1}行(${cell0})数据不完整，缺少：${missing.join('、')}`);
+          continue;
+        }
+
+      } else {
+        // (a) 普通行非空校验
+        const missing = checkAllNonEmpty(r, fieldMap);
+        if (missing.length > 0) {
+          errors.push(`单个成品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+          continue;
+        }
+
+        // (b) 普通行合法性校验
+        checkRange(r[COL_WEIGHT], 0, null, '组成', i + 1, '单个成品组成'); // >0
+        checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '单个成品组成'); // ≥0
+        checkPercentRange(r[COL_PERCENT], '百分比', i + 1, '单个成品组成');
+        // 金额公式校验：组成(g) × 不含税单价 = 金额（不除1000）
+        checkAmountFormula(r[COL_WEIGHT], r[COL_EX_PRICE], r[COL_COST], i + 1, '单个成品组成', true, '不含税单价');
       }
-
-      // (b) 合法性校验
-      checkRange(r[COL_WEIGHT], 0, null, '组成', i + 1, '单个成品组成'); // >0
-      checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '单个成品组成'); // ≥0
-      checkPercentRange(r[COL_PERCENT], '百分比', i + 1, '单个成品组成');
-      // 金额公式校验：组成(g) × 不含税单价 = 金额（不除1000）
-      checkAmountFormula(r[COL_WEIGHT], r[COL_EX_PRICE], r[COL_COST], i + 1, '单个成品组成', true, '不含税单价');
     }
   }
 
