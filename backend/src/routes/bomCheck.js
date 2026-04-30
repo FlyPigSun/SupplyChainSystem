@@ -127,8 +127,8 @@ function parsePercent(val) {
   if (str === '' || str === '-' || str.startsWith('#')) return null;
   const n = parseFloat(str);
   if (isNaN(n)) return null;
-  // Excel 百分比公式结果通常是小数（0~1），转换为百分比
-  if (n > 0 && n < 1) return parseFloat((n * 100).toFixed(2));
+  // Excel 百分比公式结果通常是小数（0~1），如 0.3948 → 39.48%，1 → 100%
+  if (n > 0 && n <= 1) return parseFloat((n * 100).toFixed(2));
   return parseFloat(n.toFixed(2));
 }
 
@@ -900,8 +900,8 @@ function parseAuditSheet(rows) {
     }
   }
 
-  // 提取抹零合计作为占比计算基数
-  totalPrice = costBreakdown['抹零合计'] || costBreakdown['合计成本'] || 0;
+  // 以合计成本作为占比计算基数（抹零合计是独立项，不参与占比）
+  totalPrice = costBreakdown['合计成本'] || costBreakdown['抹零合计'] || 0;
 
   // 用净含量作为产品重量
   if (netWeight && netWeight > 0) {
