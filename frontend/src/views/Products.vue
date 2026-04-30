@@ -219,7 +219,7 @@
               <el-input v-model="material.name" placeholder="原料名称" size="small" />
             </el-col>
             <el-col :span="6">
-              <el-input-number v-model="material.weight" :min="0" placeholder="用量" size="small" style="width: 100%" />
+              <el-input-number v-model="material.weight" :min="0" :precision="2" placeholder="用量" size="small" style="width: 100%" />
             </el-col>
             <el-col :span="4">
               <el-input v-model="material.unit" placeholder="单位" size="small" />
@@ -268,7 +268,11 @@
         </el-table-column>
         <el-table-column prop="brand" label="品牌" width="100" />
         <el-table-column prop="manufacturer" label="原料生产商" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="weight" label="用量" width="100" />
+        <el-table-column label="用量" width="100">
+          <template #default="{ row }">
+            <span>{{ row.weight != null ? row.weight.toFixed(2) : '-' }}</span>
+          </template>
+        </el-table-column>
         <el-table-column prop="unit" label="单位" width="70" align="center" />
       </el-table>
     </el-dialog>

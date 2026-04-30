@@ -12,6 +12,10 @@ const router = express.Router();
 // 空值安全处理
 const safeStr = (val, defaultVal = '') => val || defaultVal;
 const safeNum = (val, defaultVal = 0) => val ?? defaultVal;
+const safeNum2 = (val, defaultVal = 0) => {
+  const n = parseFloat(val);
+  return isNaN(n) ? defaultVal : parseFloat(n.toFixed(2));
+};
 
 // 获取产品类型列表
 router.get('/types', authMiddleware, async (req, res) => {
@@ -236,7 +240,7 @@ function insertMaterials(productId, materials) {
         safeStr(m.origin),
         safeStr(m.standard),
         safeNum(m.ratio),
-        safeNum(m.weight),
+        safeNum2(m.weight),
         safeStr(m.unit, 'g')
       ]
     );
