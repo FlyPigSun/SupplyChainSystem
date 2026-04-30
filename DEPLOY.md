@@ -13,10 +13,7 @@ apt-get install -y nodejs
 # 2. 安装 Nginx
 apt-get install -y nginx
 
-# 3. 安装 PM2（进程管理）
-npm install -g pm2
-
-# 4. 克隆代码
+# 3. 克隆代码
 git clone git@github.com:FlyPigSun/SupplyChainSystem.git /var/www/SupplyChainSystem
 ```
 
@@ -106,14 +103,11 @@ bash backend/scripts/restart.sh
  git commit -m "feat: xxx"
  git push origin master
 
-# 2. 服务器拉取 + 后端重启 + 前端构建
-ssh root@47.116.200.214 "
-  cd /var/www/SupplyChainSystem && \
-  git pull origin master && \
-  bash backend/scripts/restart.sh && \
-  cd frontend && npm run build
-"
+# 2. 服务器拉取 + 后端重启 + 前端自动构建
+ssh root@47.116.200.214 "bash /var/www/SupplyChainSystem/backend/scripts/restart.sh"
 ```
+
+> `restart.sh` 已包含 `git pull` 和前端自动构建（检测到代码更新时触发），无需手动执行 `npm run build`。
 
 ### 仅后端更新
 
@@ -122,22 +116,24 @@ ssh root@47.116.200.214 "
 ssh root@47.116.200.214 "bash /var/www/SupplyChainSystem/backend/scripts/restart.sh"
 ```
 
-### 仅前端更新
+### 仅前端更新（强制重建）
 
 ```bash
  git push origin master
-ssh root@47.116.200.214 "cd /var/www/SupplyChainSystem/frontend && npm run build"
+ssh root@47.116.200.214 "cd /var/www/SupplyChainSystem/frontend && rm -rf dist && npm run build"
 ```
+
+> 如需同时重启后端，直接执行 `restart.sh` 即可。
 
 ## 后端重启脚本
 
 `backend/scripts/restart.sh` 功能：
 
 1. 停止旧进程（释放端口 3000）
-2. 拉取最新代码（已提前执行）
-3. 安装依赖（如有变化）
-4. 启动新进程（PM2 或 nohup）
-5. 健康检查（HTTP 401 视为正常，因为无 token）
+2. 拉取最新代码
+3. 启动新进程（nohup）
+4. 健康检查（HTTP 401 视为正常，因为无 token）
+5. 如有代码更新，自动构建前端（先 `rm -rf dist` 清除缓存）
 
 ```bash
 # 一键重启

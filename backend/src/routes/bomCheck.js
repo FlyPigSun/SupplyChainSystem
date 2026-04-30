@@ -13,7 +13,7 @@ const { queryAsync, runAsync } = require('../utils/db');
 const { matchPricesForAudit } = require('../utils/priceMatcher');
 const { convertToStandardUnit } = require('../utils/unitConversion');
 const { logOperation } = require('../utils/logOperation');
-const { round2, roundFields } = require('../utils/money');
+const { round2 } = require('../utils/money');
 
 const router = express.Router();
 
