@@ -231,7 +231,7 @@
       </el-row>
 
       <!-- BOM成本合计 -->
-      <el-card v-if="result.bomCostSummary && result.bomCostSummary.length > 0" shadow="never" class="result-card">
+      <el-card v-if="result.bomCostSummary && result.bomCostSummary.length > 0" shadow="never" class="result-card bom-cost-card">
         <template #header>
           <div class="card-header">
             <span class="card-header-title">BOM成本合计</span>
@@ -243,28 +243,51 @@
         </template>
 
         <!-- PC端表格 -->
-        <el-table v-if="!isMobile" :data="result.bomCostSummary" stripe size="small">
-          <el-table-column prop="name" label="项目" min-width="120" />
-          <el-table-column label="金额" width="110">
+        <el-table
+          v-if="!isMobile"
+          :data="result.bomCostSummary"
+          stripe
+          size="small"
+          :row-class-name="bomCostRowClass"
+          class="bom-cost-table"
+        >
+          <el-table-column prop="name" label="项目" width="100" />
+          <el-table-column label="金额" width="100">
             <template #default="{ row }">
               <span v-if="row.amount !== null && row.amount !== undefined">¥{{ row.amount.toFixed(5) }}</span>
               <span v-else class="no-data">-</span>
             </template>
           </el-table-column>
-          <el-table-column label="百分比" width="100">
+          <el-table-column label="百分比" width="80">
             <template #default="{ row }">
               <span v-if="row.percent !== null">{{ row.percent.toFixed(2) }}%</span>
               <span v-else class="no-data">-</span>
             </template>
           </el-table-column>
-          <el-table-column prop="remark" label="备注" min-width="140" />
+          <el-table-column prop="remark" label="备注" min-width="140" show-overflow-tooltip />
+          <el-table-column label="状态" width="110" fixed="right">
+            <template #default="{ row }">
+              <el-tag v-if="row.status === 'ok'" type="success" size="small">正常</el-tag>
+              <el-tag v-else-if="row.status === 'warning'" type="danger" size="small">异常</el-tag>
+              <el-tag v-else-if="row.status === 'missing'" type="warning" size="small">缺失</el-tag>
+              <div v-if="row.statusMsg" class="status-msg">{{ row.statusMsg }}</div>
+            </template>
+          </el-table-column>
         </el-table>
 
         <!-- 移动端卡片 -->
         <div v-else class="mobile-cards">
-          <div v-for="(row, idx) in result.bomCostSummary" :key="idx" class="mobile-card">
+          <div
+            v-for="(row, idx) in result.bomCostSummary"
+            :key="idx"
+            class="mobile-card"
+            :class="{ 'mobile-card-warning': row.status === 'warning', 'mobile-card-missing': row.status === 'missing' }"
+          >
             <div class="mobile-card-header">
               <div class="mobile-card-title">{{ row.name }}</div>
+              <el-tag v-if="row.status === 'ok'" type="success" size="small">正常</el-tag>
+              <el-tag v-else-if="row.status === 'warning'" type="danger" size="small">异常</el-tag>
+              <el-tag v-else-if="row.status === 'missing'" type="warning" size="small">缺失</el-tag>
             </div>
             <div class="mobile-card-body">
               <div class="mobile-card-row">
@@ -285,14 +308,11 @@
                 <span class="mobile-card-label">备注</span>
                 <span class="mobile-card-value">{{ row.remark || '-' }}</span>
               </div>
+              <div v-if="row.statusMsg" class="mobile-card-row">
+                <span class="mobile-card-label">状态说明</span>
+                <span class="mobile-card-value diff-amount">{{ row.statusMsg }}</span>
+              </div>
             </div>
-          </div>
-        </div>
-
-        <div v-if="result.costWarnings && result.costWarnings.length > 0" class="cost-warning-list">
-          <div v-for="w in result.costWarnings" :key="w.id" class="cost-warning-item">
-            <el-icon color="#f56c6c"><WarningFilled /></el-icon>
-            <span>{{ w.message }}</span>
           </div>
         </div>
       </el-card>
@@ -746,6 +766,12 @@ const costRowClass = ({ row }) => {
   return ''
 }
 
+const bomCostRowClass = ({ row }) => {
+  if (row.status === 'warning') return 'bom-cost-warning-row'
+  if (row.status === 'missing') return 'bom-cost-missing-row'
+  return ''
+}
+
 const handleFileChange = (e) => {
   const file = e.target.files[0]
   if (file) processFile(file)
@@ -1006,4 +1032,21 @@ const onCorrectionSaved = async () => {
 .tcs-label { font-size: 13px; color: #606266; }
 .tcs-stat { font-size: 12px; color: #909399; }
 .tcs-error { color: #f56c6c; font-weight: 600; }
+
+/* BOM成本合计表格 */
+.bom-cost-card .bom-cost-table {
+  max-width: 680px;
+}
+.bom-cost-card :deep(.bom-cost-warning-row) {
+  background-color: #fef0f0 !important;
+}
+.bom-cost-card :deep(.bom-cost-missing-row) {
+  background-color: #fdf6ec !important;
+}
+.status-msg {
+  font-size: 11px;
+  color: #f56c6c;
+  margin-top: 2px;
+  line-height: 1.3;
+}
 </style>

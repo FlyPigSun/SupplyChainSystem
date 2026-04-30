@@ -1111,13 +1111,43 @@ async function runBomCheck(rows, fileName) {
     '折旧费', '管理费', '利润费', '房租费', '合计成本', '抹零合计'
   ];
 
+  // 从 costItems 构建预警状态映射（label -> {status, min, max, percent}）
+  const itemStatusMap = {};
+  for (const item of costItems) {
+    itemStatusMap[item.label] = {
+      status: item.status,
+      min: item.min,
+      max: item.max,
+      percent: item.percent
+    };
+  }
+
   const bomCostSummary = bomCostFixedOrder.map(name => {
     const row = costRows.find(r => r.name === name);
+    const itemStatus = itemStatusMap[name];
+    let status = 'ok';
+    let statusMsg = '';
+
+    if (itemStatus) {
+      status = itemStatus.status;
+      if (status === 'warning') {
+        if (itemStatus.percent !== null && itemStatus.max !== null && itemStatus.percent > itemStatus.max) {
+          statusMsg = `超过上限 ${itemStatus.max}%`;
+        } else if (itemStatus.percent !== null && itemStatus.min !== null && itemStatus.percent < itemStatus.min) {
+          statusMsg = `低于下限 ${itemStatus.min}%`;
+        }
+      } else if (status === 'missing') {
+        statusMsg = '数据缺失';
+      }
+    }
+
     return {
       name,
       amount: row ? row.amount : null,
       percent: row ? row.percent : null,
-      remark: row ? row.remark : ''
+      remark: row ? row.remark : '',
+      status,
+      statusMsg
     };
   });
 
