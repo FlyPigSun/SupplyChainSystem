@@ -936,13 +936,11 @@ async function runBomCheck(rows, fileName) {
       auditMaterialCount: 0,
       auditSections: [],
       systemMaterialCount: 0,
-      formulaDiffCount: 0,
       priceDiffCount: 0,
       fuzzyCount: 0,
       flavorDiffCount: 0,
       noPriceCount: 0,
       correctedCount: 0,
-      formulaDiffs: [],
       priceDiffs: [],
       costBreakdown: {},
       costRows: [],
@@ -974,13 +972,11 @@ async function runBomCheck(rows, fileName) {
       auditMaterialCount: 0,
       auditSections: [],
       systemMaterialCount: 0,
-      formulaDiffCount: 0,
       priceDiffCount: 0,
       fuzzyCount: 0,
       flavorDiffCount: 0,
       noPriceCount: 0,
       correctedCount: 0,
-      formulaDiffs: [],
       priceDiffs: [],
       costBreakdown: {},
       costRows: [],
@@ -1168,32 +1164,6 @@ async function runBomCheck(rows, fileName) {
     );
   }
 
-  const formulaDiffs = [];
-  // 配方比对覆盖所有产品组成区域的原料（排除包材）
-  const formulaMaterials = auditMaterials.filter(m => !m.isPackaging);
-  formulaMaterials.forEach(am => {
-    const sysRec = systemMaterials.find(r =>
-      (r.unified_name && (r.unified_name === am.name || r.unified_name.includes(am.name) || am.name.includes(r.unified_name))) ||
-      (r.material_name && (r.material_name === am.name || r.material_name.includes(am.name) || am.name.includes(r.material_name)))
-    );
-    if (!sysRec) {
-      formulaDiffs.push({ name: am.name, brandSpec: am.brandSpec, auditWeightG: am.weightG, sysWeightG: null, status: 'missing' });
-    } else {
-      const sysWeightG = sysRec.weight || 0;
-      const weightDiff = Math.abs(am.weightG - sysWeightG);
-      formulaDiffs.push({ name: am.name, brandSpec: am.brandSpec, auditWeightG: am.weightG, sysWeightG, weightDiff, status: weightDiff > 0.5 ? 'diff' : 'ok' });
-    }
-  });
-  systemMaterials.forEach(r => {
-    const found = formulaMaterials.find(am =>
-      (r.unified_name && (r.unified_name === am.name || r.unified_name.includes(am.name) || am.name.includes(r.unified_name))) ||
-      (r.material_name && (r.material_name === am.name || r.material_name.includes(am.name) || am.name.includes(r.material_name)))
-    );
-    if (!found) {
-      formulaDiffs.push({ name: r.unified_name || r.material_name, brandSpec: r.brand_spec || '', auditWeightG: null, sysWeightG: r.weight || 0, status: 'extra' });
-    }
-  });
-
   // ===== 价格差异核查（含修正记忆） =====
   const priceRecords = await queryAsync('SELECT * FROM material_prices');
 
@@ -1315,7 +1285,6 @@ async function runBomCheck(rows, fileName) {
     };
   });
 
-  const formulaDiffCount = formulaDiffs.filter(d => d.status !== 'ok').length;
   const priceDiffCount = priceDiffs.filter(d => d.status === 'diff').length;
   const fuzzyCount = priceDiffs.filter(d => d.matchType === 'fuzzy').length;
   const flavorDiffCount = priceDiffs.filter(d => d.matchType === 'flavor_diff').length;
@@ -1332,8 +1301,8 @@ async function runBomCheck(rows, fileName) {
     auditMaterialCount: auditMaterials.length,
     auditSections: [...new Set(auditMaterials.map(m => m.section))].filter(Boolean),
     systemMaterialCount: systemMaterials.length,
-    formulaDiffCount, priceDiffCount, fuzzyCount, flavorDiffCount, noPriceCount, correctedCount,
-    formulaDiffs, priceDiffs,
+    priceDiffCount, fuzzyCount, flavorDiffCount, noPriceCount, correctedCount,
+    priceDiffs,
     costBreakdown, costRows, totalPrice, costItems, costWarnings,
     bomCostSummary,
     _encodingIssue: hasEncodingIssue,
@@ -1359,7 +1328,7 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
     await logOperation(
       req.user.username,
       'bom_check',
-      `成本核查: ${result.productName}, 配方差异${result.formulaDiffCount}项, 价格差异${result.priceDiffCount}项`
+      `成本核查: ${result.productName}, 价格差异${result.priceDiffCount}项`
     );
 
     res.json({ ok: true, ...result });

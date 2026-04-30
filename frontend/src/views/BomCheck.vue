@@ -1,7 +1,7 @@
 <template>
   <div class="bom-check-page">
     <h2 class="page-title">成本核查</h2>
-    <p class="page-desc">上传成本核算表 Excel 文件，自动核查配方构成与价格是否与系统数据一致。</p>
+    <p class="page-desc">上传成本核算表 Excel 文件，自动核查价格是否与系统数据一致。</p>
 
     <!-- 上传区域 -->
     <el-card shadow="never" class="upload-card">
@@ -207,14 +207,6 @@
           </div>
         </el-col>
         <el-col :xs="12" :sm="6">
-          <div class="summary-item" :class="{ 'has-diff': result.formulaDiffCount > 0 }">
-            <div class="summary-label">配方差异</div>
-            <div class="summary-value" :class="{ 'diff-text': result.formulaDiffCount > 0 }">
-              {{ result.formulaDiffCount }} 项
-            </div>
-          </div>
-        </el-col>
-        <el-col :xs="12" :sm="6">
           <div class="summary-item" :class="{ 'has-diff': priceDiffTotal > 0 }">
             <div class="summary-label">价格异常</div>
             <div class="summary-value" :class="{ 'diff-text': priceDiffTotal > 0 }">
@@ -315,93 +307,6 @@
             </div>
           </div>
         </div>
-      </el-card>
-
-      <!-- 配方构成差异 -->
-      <el-card v-if="result.matchedProductCount > 0" shadow="never" class="result-card">
-        <template #header>
-          <div class="card-header">
-            <span class="card-header-title">配方构成差异（面团部分）</span>
-            <el-tag v-if="result.formulaDiffCount === 0" type="success" size="small">一致</el-tag>
-            <el-tag v-else type="warning" size="small">{{ result.formulaDiffCount }} 项差异</el-tag>
-          </div>
-        </template>
-        
-        <!-- PC端表格 -->
-        <el-table v-if="!isMobile && result.formulaDiffs?.length" :data="result.formulaDiffs" stripe size="small">
-          <el-table-column prop="name" label="原料名称" min-width="120" show-overflow-tooltip />
-          <el-table-column prop="brandSpec" label="品牌规格" min-width="120" show-overflow-tooltip />
-          <el-table-column label="核算表用量" width="100">
-            <template #default="{ row }">
-              <span v-if="row.auditWeightG !== null">{{ row.auditWeightG.toFixed(2) }} g</span>
-              <el-tag v-else type="info" size="small">无</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="系统用量" width="100">
-            <template #default="{ row }">
-              <span v-if="row.sysWeightG !== null">{{ row.sysWeightG.toFixed(2) }} g</span>
-              <el-tag v-else type="info" size="small">无</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column label="差异" width="80">
-            <template #default="{ row }">
-              <span v-if="row.weightDiff !== undefined" :class="{ 'diff-amount': Math.abs(row.weightDiff) > 0.01 }">
-                {{ row.weightDiff > 0 ? '+' : '' }}{{ row.weightDiff.toFixed(2) }}
-              </span>
-              <span v-else>-</span>
-            </template>
-          </el-table-column>
-          <el-table-column label="状态" width="100" fixed="right">
-            <template #default="{ row }">
-              <el-tag v-if="row.status === 'ok'" type="success" size="small">一致</el-tag>
-              <el-tag v-else-if="row.status === 'diff'" type="warning" size="small">用量不符</el-tag>
-              <el-tag v-else-if="row.status === 'missing'" type="danger" size="small">系统无</el-tag>
-              <el-tag v-else-if="row.status === 'extra'" type="info" size="small">核算表无</el-tag>
-            </template>
-          </el-table-column>
-        </el-table>
-        
-        <!-- 移动端卡片 -->
-        <div v-else-if="result.formulaDiffs?.length" class="mobile-cards">
-          <div v-for="(row, idx) in result.formulaDiffs" :key="idx" class="mobile-card">
-            <div class="mobile-card-header">
-              <div class="mobile-card-title">{{ row.name }}</div>
-              <el-tag v-if="row.status === 'ok'" type="success" size="small">一致</el-tag>
-              <el-tag v-else-if="row.status === 'diff'" type="warning" size="small">用量不符</el-tag>
-              <el-tag v-else-if="row.status === 'missing'" type="danger" size="small">系统无</el-tag>
-              <el-tag v-else-if="row.status === 'extra'" type="info" size="small">核算表无</el-tag>
-            </div>
-            <div class="mobile-card-body">
-              <div class="mobile-card-row">
-                <span class="mobile-card-label">品牌规格</span>
-                <span class="mobile-card-value">{{ row.brandSpec || '-' }}</span>
-              </div>
-              <div class="mobile-card-row">
-                <span class="mobile-card-label">核算表用量</span>
-                <span class="mobile-card-value">
-                  <template v-if="row.auditWeightG !== null">{{ row.auditWeightG.toFixed(2) }} g</template>
-                  <el-tag v-else type="info" size="small">无</el-tag>
-                </span>
-              </div>
-              <div class="mobile-card-row">
-                <span class="mobile-card-label">系统用量</span>
-                <span class="mobile-card-value">
-                  <template v-if="row.sysWeightG !== null">{{ row.sysWeightG.toFixed(2) }} g</template>
-                  <el-tag v-else type="info" size="small">无</el-tag>
-                </span>
-              </div>
-              <div class="mobile-card-row">
-                <span class="mobile-card-label">差异</span>
-                <span class="mobile-card-value" :class="{ 'diff-amount': row.weightDiff !== undefined && Math.abs(row.weightDiff) > 0.01 }">
-                  <template v-if="row.weightDiff !== undefined">{{ row.weightDiff > 0 ? '+' : '' }}{{ row.weightDiff.toFixed(2) }}</template>
-                  <span v-else>-</span>
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
-        
-        <el-empty v-else description="无配方差异数据" :image-size="60" />
       </el-card>
 
       <!-- 价格差异 -->
