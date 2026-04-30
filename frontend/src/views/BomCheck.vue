@@ -929,6 +929,7 @@ const onCorrectionSaved = async () => {
 .fuzzy-row { background-color: #fef0f0 !important; }
 .flavor-diff-row { background-color: #fdf6ec !important; }
 .corrected-row { background-color: #f0f9eb !important; }
-.bom-cost-warning-row { background-color: #fef0f0 !important; }
-.bom-cost-missing-row { background-color: #fdf6ec !important; }
+/* 提高选择器优先级，覆盖 el-table stripe 样式 */
+.bom-cost-table .el-table__row.bom-cost-warning-row { background-color: #fef0f0 !important; }
+.bom-cost-table .el-table__row.bom-cost-missing-row { background-color: #fdf6ec !important; }
 </style>

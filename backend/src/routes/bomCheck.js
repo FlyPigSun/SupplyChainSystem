@@ -835,7 +835,7 @@ function parseAuditSheet(rows) {
     // 跳过汇总行和表头行
     if (['加总', '每克成本', '包材成本', '原料成本', '合计'].includes(cell1)) continue;
     if (['加总', '每克成本', '工艺分项', '项目'].includes(cell0)) continue;
-    if (['胚体成本', '成型成本', '冷加工成本', '包材成本', '成品合计'].includes(cell0)) continue;
+    if (['胚体成本', '成型成本', '冷加工成本', '包材成本'].includes(cell0)) continue;
 
     // 提取成本组成原始数据（BOM成本合计区域）
     if (inCostSection) {
@@ -1079,8 +1079,11 @@ async function runBomCheck(rows, fileName) {
         }
       }
 
-      // 综合判断状态
-      if (pctWarning || amtWarning) {
+      // 综合判断状态（无阈值规则的不参与预警）
+      const hasThreshold = rule.minPercent != null || rule.maxPercent != null ||
+                           rule.minAmount != null || rule.maxAmount != null ||
+                           rule.min != null || rule.max != null;
+      if (hasThreshold && (pctWarning || amtWarning)) {
         item.status = 'warning';
         costWarnings.push({
           id: rule.id,
@@ -1089,7 +1092,7 @@ async function runBomCheck(rows, fileName) {
           percent: percent !== null ? parseFloat(percent.toFixed(1)) : null,
           message: pctMsg || amtMsg
         });
-      } else if (percent === null && matchedValue === null) {
+      } else if (hasThreshold && percent === null && matchedValue === null) {
         // 费用项在 Excel 中未找到
         const pctMin = rule.minPercent ?? rule.min;
         if (pctMin !== null && pctMin > 0) {
