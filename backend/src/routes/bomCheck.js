@@ -614,9 +614,9 @@ function validateTemplateData(rows, headerDetails) {
           continue;
         }
 
-        // (b) 汇总行合法性校验：不含税单价 ≥ 0，金额 = 不含税单价
+        // (b) 汇总行合法性校验：不含税单价 ≥ 0，组成 × 不含税单价 = 金额
         checkRange(r[spColExPrice], 0, null, '不含税单价', i + 1, '单个成品组成');
-        checkAmountFormula(1, r[spColExPrice], r[spColCost], i + 1, `单个成品组成(${cell0})`, true, '不含税单价');
+        checkAmountFormula(r[spColWeight], r[spColExPrice], r[spColCost], i + 1, `单个成品组成(${cell0})`, true, '不含税单价');
 
       } else if (summaryOnlyAmount.includes(cell0)) {
         // (a) 成品合计等：只要求金额非空
