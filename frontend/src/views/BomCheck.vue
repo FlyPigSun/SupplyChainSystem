@@ -624,7 +624,7 @@ const totalPrice = computed(() => result.value?.totalPrice || 0)
 
 const priceDiffTotal = computed(() => {
   if (!result.value) return 0
-  return result.value.priceDiffCount + result.value.fuzzyCount + result.value.flavorDiffCount
+  return result.value.priceDiffCount
 })
 
 
