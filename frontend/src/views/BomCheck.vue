@@ -346,7 +346,7 @@
               <span v-else class="no-data">-</span>
             </template>
           </el-table-column>
-          <el-table-column label="原料库价格" width="140">
+          <el-table-column label="原料库含税价格" width="140">
             <template #default="{ row }">
               <div v-if="row.sysPrice !== null">
                 <div class="sys-price-original">¥{{ row.sysPrice.toFixed(2) }}<span v-if="row.originalSysUnit">/{{ row.originalSysUnit }}</span></div>
@@ -393,7 +393,7 @@
           </el-table-column>
           <el-table-column label="操作" width="70" fixed="right">
             <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="openCorrectionDialog(row)">修正</el-button>
+              <el-button link type="primary" size="small" @click="openCorrectionDialog(row)">修正原料库匹配</el-button>
             </template>
           </el-table-column>
         </el-table>
@@ -432,7 +432,7 @@
                 </span>
               </div>
               <div class="mobile-card-row">
-                <span class="mobile-card-label">原料库价格</span>
+                <span class="mobile-card-label">原料库含税价格</span>
                 <span class="mobile-card-value">
                   <template v-if="row.sysPrice !== null">
                     <div class="mobile-sys-price">
@@ -479,7 +479,7 @@
               </div>
             </div>
             <div class="mobile-card-footer">
-              <el-button type="primary" size="small" @click="openCorrectionDialog(row)">修正</el-button>
+              <el-button type="primary" size="small" @click="openCorrectionDialog(row)">修正原料库匹配</el-button>
             </div>
           </div>
         </div>

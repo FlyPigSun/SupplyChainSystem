@@ -19,7 +19,7 @@
         <el-table-column prop="model" label="型号" min-width="120" show-overflow-tooltip />
         <el-table-column prop="supplier" label="供应商" min-width="100" show-overflow-tooltip />
         <el-table-column prop="spec" label="规格" width="100" show-overflow-tooltip />
-        <el-table-column prop="price" label="单价" width="100" align="right">
+        <el-table-column prop="price" label="含税单价" width="110" align="right">
           <template #default="{ row }">
             ¥{{ row.price?.toFixed(2) }}
           </template>
@@ -53,7 +53,7 @@
         <el-form-item label="规格">
           <el-input v-model="form.spec" placeholder="如：25kg/袋" />
         </el-form-item>
-        <el-form-item label="单价" prop="price">
+        <el-form-item label="含税单价" prop="price">
           <el-input-number v-model="form.price" :min="0" :precision="2" style="width: 100%" />
         </el-form-item>
         <el-form-item label="单位">
@@ -148,7 +148,7 @@ const form = reactive({
 })
 
 const rules = {
-  price: [{ required: true, message: '请输入单价', trigger: 'blur' }]
+  price: [{ required: true, message: '请输入含税单价', trigger: 'blur' }]
 }
 
 // 导入
