@@ -821,7 +821,11 @@ function parseAuditSheet(rows) {
     // 提取品名和新增字段
     if (cell0.includes('产品名称')) {
       productName = cellName;  // col2
-      yieldRate = parseNumOrNull(r[5]);     // col5 出成率
+      const rawYieldRate = parseNumOrNull(r[5]);     // col5 出成率
+      // 出成率支持小数形式（0.78）和百分数形式（78），统一转为百分数
+      yieldRate = rawYieldRate !== null && rawYieldRate > 0 && rawYieldRate < 1
+        ? parseFloat((rawYieldRate * 100).toFixed(2))
+        : rawYieldRate;
       factoryPrice = parseNumOrNull(r[7]);  // col7 实际出厂价
       netWeight = parseNumOrNull(r[9]);     // col9 净含量
       continue;
