@@ -476,9 +476,11 @@ function validateTemplateData(rows, headerDetails) {
       if (cell1 === '组成' && cell0 === '工艺') continue;
 
       const nonEmpty = getNonEmptyFields(r, fieldMap);
-      // 排除仅金额为0的空行（模板预留行常见情况）
-      const isEmptyRow = nonEmpty.length === 0 || (nonEmpty.length === 1 && nonEmpty[0] === '金额' && (parseFloat(r[COL_COST]) || 0) === 0);
-      if (isEmptyRow) continue;
+      // 全空行也提示数据不完整（用户要求模板中不应留空行）
+      if (nonEmpty.length === 0) {
+        errors.push(`产品组成第${i + 1}行数据不完整，缺少：原料名、重量、含税价、不含税价、金额`);
+        continue;
+      }
 
       // (a) 非空校验
       const missing = checkAllNonEmpty(r, fieldMap);
