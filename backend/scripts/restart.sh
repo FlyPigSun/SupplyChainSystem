@@ -52,6 +52,16 @@ git checkout -- . 2>/dev/null || true
 PULL_OUTPUT=$(git pull origin master 2>&1)
 echo "$PULL_OUTPUT" | grep -E "(Updating|Fast-forward|Already up)" || echo "      代码已是最新"
 NEED_BUILD=$(echo "$PULL_OUTPUT" | grep -c "Updating\|Fast-forward" || true)
+
+# 如果脚本自身有更新，用 exec 重新执行（避免旧版本脚本在内存中继续运行）
+if echo "$PULL_OUTPUT" | grep -q "Updating\|Fast-forward"; then
+    SCRIPT_CHANGED=$(git diff --name-only HEAD@{1} HEAD 2>/dev/null | grep -c "restart.sh" || true)
+    if [ "$SCRIPT_CHANGED" -gt 0 ]; then
+        echo "      检测到 restart.sh 有更新，重新加载脚本..."
+        exec bash "$0" "$@"
+    fi
+fi
+
 cd "$APP_DIR"
 
 # 3. 启动新进程
