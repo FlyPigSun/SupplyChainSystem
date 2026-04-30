@@ -185,6 +185,17 @@
           </div>
         </el-col>
         <el-col :xs="12" :sm="6">
+          <div class="summary-item" :class="{ 'has-diff': (result.costWarnings?.length || 0) > 0 }">
+            <div class="summary-label">成本合计异常</div>
+            <div class="summary-value" :class="{ 'diff-text': (result.costWarnings?.length || 0) > 0 }">
+              {{ result.costWarnings?.length || 0 }} 项
+            </div>
+            <div class="summary-sub" v-if="result.costWarnings?.length">
+              <span class="warn-sub">{{ result.costWarnings.length }} 项占比/金额异常</span>
+            </div>
+          </div>
+        </el-col>
+        <el-col :xs="12" :sm="6">
           <div class="summary-item">
             <div class="summary-label">核算表原料</div>
             <div class="summary-value">{{ result.auditMaterialCount }} 种</div>
@@ -333,7 +344,7 @@
             </template>
           </el-table-column>
 
-          <el-table-column label="原料库含税价格" width="140">
+          <el-table-column label="原料库含税价" width="140">
             <template #default="{ row }">
               <div v-if="row.sysPrice !== null">
                 <div class="sys-price-original">¥{{ row.sysPrice.toFixed(2) }}<span v-if="row.originalSysUnit">/{{ row.originalSysUnit }}</span></div>
@@ -413,11 +424,12 @@
               </div>
 
               <div class="mobile-card-row">
-                <span class="mobile-card-label">原料库含税价格</span>
+                <span class="mobile-card-label">原料库含税价</span>
                 <span class="mobile-card-value">
                   <template v-if="row.sysPrice !== null">
                     <div class="mobile-sys-price">
                       <div class="sys-price-original">¥{{ row.sysPrice.toFixed(2) }}<span v-if="row.originalSysUnit">/{{ row.originalSysUnit }}</span></div>
+                      <div v-if="row.unitSource" class="mobile-unit-source">{{ row.unitSource }}</div>
                       <div v-if="row.sysStandardPrice !== null && row.sysStandardUnit" class="sys-price-converted">
                         ¥{{ row.sysStandardPrice.toFixed(2) }}/{{ row.sysStandardUnit }}
                       </div>
@@ -879,6 +891,12 @@ const onCorrectionSaved = async () => {
   font-size: 14px;
   color: #1d2129;
   font-weight: 600;
+  margin-top: 2px;
+}
+
+.mobile-unit-source {
+  font-size: 11px;
+  color: #909399;
   margin-top: 2px;
 }
 

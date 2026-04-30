@@ -1300,19 +1300,13 @@ async function runBomCheck(rows, fileName) {
     };
   });
 
-  // 按优先级排序：价格差异 > 模糊匹配 > 品牌匹配 > 未匹配 > 其他
-  const priorityMap = {
-    'diff': 1,
-    'fuzzy': 2,
-    'brand_model': 3,
-    'noprice': 4
-  };
+  // 按优先级排序：价格差异 > 模糊匹配 > 品牌/精确匹配 > 未匹配 > 其他
   priceDiffs.sort((a, b) => {
     const getPriority = (item) => {
-      if (item.status === 'diff') return priorityMap['diff'];
-      if (item.matchType === 'fuzzy') return priorityMap['fuzzy'];
-      if (item.matchType === 'brand_model') return priorityMap['brand_model'];
-      if (item.status === 'noprice' || item.matchType === null) return priorityMap['noprice'];
+      if (item.status === 'diff') return 1;
+      if (item.matchType === 'fuzzy') return 2;
+      if (item.matchType === 'exact' || item.matchType === 'brand_model') return 3;
+      if (item.status === 'noprice' || item.matchType === null) return 4;
       return 99;
     };
     return getPriority(a) - getPriority(b);
