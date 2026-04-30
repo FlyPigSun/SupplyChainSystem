@@ -331,6 +331,12 @@ function hasValue(val) {
 // headerDetails 是 validateTemplateHeaders 返回的 details
 function validateTemplateData(rows, headerDetails) {
   const errors = [];
+  // 各区域统计
+  let statsProductRows = 0, statsProductErrs = 0;
+  let statsPackRows = 0, statsPackErrs = 0;
+  let statsSingleRows = 0, statsSingleErrs = 0;
+  let statsBomRows = 0, statsBomErrs = 0;
+  let statsInfoFound = false, statsInfoErrs = 0;
 
   // ========== 合法性校验辅助函数 ==========
 
@@ -457,6 +463,7 @@ function validateTemplateData(rows, headerDetails) {
       '不含税价': COL_EX_PRICE,
       '金额': COL_COST
     };
+    const errStart = errors.length;
 
     for (let i = startIdx; i < endIdx && i < rows.length; i++) {
       const r = rows[i];
@@ -475,6 +482,7 @@ function validateTemplateData(rows, headerDetails) {
       // 跳过表头行
       if (cell1 === '组成' && cell0 === '工艺') continue;
 
+      statsProductRows++;
       const nonEmpty = getNonEmptyFields(r, fieldMap);
       // 全空行也提示数据不完整（用户要求模板中不应留空行）
       if (nonEmpty.length === 0) {
@@ -496,6 +504,7 @@ function validateTemplateData(rows, headerDetails) {
       // 金额公式校验
       checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '产品组成');
     }
+    statsProductErrs = errors.length - errStart;
   }
 
   // ========== 2. 单个产品包材组成数据校验 ==========
@@ -514,6 +523,7 @@ function validateTemplateData(rows, headerDetails) {
       '金额': COL_COST,
       '百分比': COL_PERCENT
     };
+    const errStart = errors.length;
 
     for (let i = startIdx; i < endIdx && i < rows.length; i++) {
       const r = rows[i];
@@ -526,6 +536,7 @@ function validateTemplateData(rows, headerDetails) {
       const nonEmpty = getNonEmptyFields(r, fieldMap);
       if (nonEmpty.length === 0) continue;
 
+      statsPackRows++;
       // (a) 非空校验
       const missing = checkAllNonEmpty(r, fieldMap);
       if (missing.length > 0) {
@@ -541,6 +552,7 @@ function validateTemplateData(rows, headerDetails) {
       // 金额公式校验（包材：数量 × 含税单价，单价是单个价格，不除1000）
       checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '包材组成', true);
     }
+    statsPackErrs = errors.length - errStart;
   }
 
   // ========== 3. 单个成品组成数据校验 ==========
@@ -558,6 +570,7 @@ function validateTemplateData(rows, headerDetails) {
       '金额': COL_COST,
       '百分比': COL_PERCENT
     };
+    const errStart = errors.length;
 
     for (let i = startIdx; i < endIdx && i < rows.length; i++) {
       const r = rows[i];
@@ -569,6 +582,8 @@ function validateTemplateData(rows, headerDetails) {
 
       const nonEmpty = getNonEmptyFields(r, fieldMap);
       if (nonEmpty.length === 0) continue;
+
+      statsSingleRows++;
 
       // 区分汇总行和普通行
       const summaryWithPrice = ['胚体成本', '成型成本', '冷加工成本', '包材成本'];
@@ -617,6 +632,7 @@ function validateTemplateData(rows, headerDetails) {
         checkAmountFormula(r[COL_WEIGHT], r[COL_EX_PRICE], r[COL_COST], i + 1, '单个成品组成', true, '不含税单价');
       }
     }
+    statsSingleErrs = errors.length - errStart;
   }
 
   // ========== 4. BOM成本合计特定行校验 ==========
@@ -645,6 +661,7 @@ function validateTemplateData(rows, headerDetails) {
       { name: '房租费用', keywords: ['房租费用', '房租'] },
       { name: '合计成本', keywords: ['合计成本', '成本合计'] }
     ];
+    const errStart = errors.length;
 
     for (let i = startIdx; i < endIdx && i < rows.length; i++) {
       const r = rows[i];
@@ -654,6 +671,7 @@ function validateTemplateData(rows, headerDetails) {
 
       const matchedItem = requiredItems.find(req => req.keywords.some(kw => itemName.includes(kw)));
       if (matchedItem) {
+        statsBomRows++;
         const missing = [];
         if (isEmptyCell(r[COL_COST])) missing.push('金额');
         if (isEmptyCell(r[COL_PERCENT])) missing.push('百分比');
@@ -667,6 +685,7 @@ function validateTemplateData(rows, headerDetails) {
         checkPercentRange(r[COL_PERCENT], '百分比', i + 1, 'BOM成本合计');
       }
     }
+    statsBomErrs = errors.length - errStart;
   }
 
   // ========== 5. 产品信息校验 ==========
@@ -675,6 +694,8 @@ function validateTemplateData(rows, headerDetails) {
     if (!r) continue;
     const cell0 = String(r[0] || '').trim();
     if (cell0.includes('产品名称')) {
+      statsInfoFound = true;
+      const errStart = errors.length;
       // (a) 非空校验
       if (isEmptyCell(r[COL_NAME])) {
         errors.push('产品名称不能为空');
@@ -702,13 +723,21 @@ function validateTemplateData(rows, headerDetails) {
       if (netWeightVal !== null && netWeightVal <= 0) {
         errors.push(`净含量必须 > 0，当前值为 ${netWeightVal}`);
       }
+      statsInfoErrs = errors.length - errStart;
       break;
     }
   }
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
+    stats: {
+      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs },
+      packaging: { dataRows: statsPackRows, errorRows: statsPackErrs },
+      singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs },
+      bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs },
+      productInfo: { found: statsInfoFound, errors: statsInfoErrs }
+    }
   };
 }
 
@@ -903,7 +932,12 @@ async function runBomCheck(rows, fileName) {
       costItems: [],
       costWarnings: headerValidation.errors.map(msg => ({ type: 'error', message: msg })),
       _validationErrors: headerValidation.errors,
-      _validationDetails: headerValidation.details
+      _validationDetails: headerValidation.details,
+      _templateCheck: {
+        passed: false,
+        headerCheck: headerValidation.details,
+        dataCheck: null
+      }
     };
   }
 
@@ -935,7 +969,12 @@ async function runBomCheck(rows, fileName) {
       costItems: [],
       costWarnings: dataValidation.errors.map(msg => ({ type: 'error', message: msg })),
       _validationErrors: dataValidation.errors,
-      _validationDetails: headerValidation.details
+      _validationDetails: headerValidation.details,
+      _templateCheck: {
+        passed: false,
+        headerCheck: headerValidation.details,
+        dataCheck: dataValidation.stats
+      }
     };
   }
 
@@ -1230,7 +1269,12 @@ async function runBomCheck(rows, fileName) {
     formulaDiffCount, priceDiffCount, fuzzyCount, flavorDiffCount, noPriceCount, correctedCount,
     formulaDiffs, priceDiffs,
     costBreakdown, costRows, totalPrice, costItems, costWarnings,
-    _encodingIssue: hasEncodingIssue
+    _encodingIssue: hasEncodingIssue,
+    _templateCheck: {
+      passed: true,
+      headerCheck: headerValidation.details,
+      dataCheck: dataValidation.stats
+    }
   };
 }
 

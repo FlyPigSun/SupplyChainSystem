@@ -122,6 +122,50 @@
 
       <!-- 正常核查结果展示 -->
       <template v-else>
+        <!-- 模板检核结果（默认折叠） -->
+        <el-card v-if="result._templateCheck" shadow="never" class="result-card template-check-card">
+          <el-collapse v-model="activeTemplateCheck">
+            <el-collapse-item name="templateCheck">
+              <template #title>
+                <div class="template-check-title">
+                  <el-icon :size="18" :color="result._templateCheck.passed ? '#67c23a' : '#f56c6c'"><CircleCheckFilled /></el-icon>
+                  <span>模板检核结果</span>
+                  <el-tag v-if="result._templateCheck.passed" type="success" size="small">通过</el-tag>
+                  <el-tag v-else type="danger" size="small">未通过</el-tag>
+                </div>
+              </template>
+              <div class="template-check-body">
+                <!-- 表头结构 -->
+                <div class="template-check-section">
+                  <div class="tcs-title">表头结构</div>
+                  <div class="tcs-grid">
+                    <div v-for="item in templateCheckHeaderItems" :key="item.key" class="tcs-item">
+                      <span class="tcs-label">{{ item.label }}</span>
+                      <el-tag v-if="item.found" type="success" size="small">已找到</el-tag>
+                      <el-tag v-else type="danger" size="small">未找到</el-tag>
+                    </div>
+                  </div>
+                </div>
+                <!-- 数据校验 -->
+                <div class="template-check-section">
+                  <div class="tcs-title">数据校验</div>
+                  <div class="tcs-grid">
+                    <div v-for="item in templateCheckDataItems" :key="item.key" class="tcs-item">
+                      <span class="tcs-label">{{ item.label }}</span>
+                      <span class="tcs-stat">
+                        <template v-if="item.rows > 0">{{ item.rows }} 行</template>
+                        <template v-else>-</template>
+                        <template v-if="item.errors > 0">，<span class="tcs-error">{{ item.errors }} 项错误</span></template>
+                        <template v-else-if="item.rows > 0">，正常</template>
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </el-collapse-item>
+          </el-collapse>
+        </el-card>
+
         <el-alert 
           v-if="result.matchedProductCount === 0" 
           title="未匹配到系统产品，仅显示价格核查" 
@@ -572,7 +616,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { ElMessage } from 'element-plus'
-import { Upload, Document, Loading, WarningFilled, CircleCloseFilled } from '@element-plus/icons-vue'
+import { Upload, Document, Loading, WarningFilled, CircleCloseFilled, CircleCheckFilled } from '@element-plus/icons-vue'
 import { useMobile } from '../composables/useMobile'
 import { bomCheckApi } from '../api'
 import CorrectionDialog from '../components/CorrectionDialog.vue'
@@ -586,6 +630,9 @@ const lastFile = ref(null)
 
 const showCorrectionDialog = ref(false)
 const correctingItem = ref(null)
+
+// 模板检核结果折叠状态（默认折叠）
+const activeTemplateCheck = ref([])
 
 // 响应式布局
 const { isMobile } = useMobile()
@@ -645,6 +692,71 @@ const validationStats = computed(() => {
 // 默认展开所有有错误的区域
 const activeValidationGroups = computed(() => {
   return groupedValidationErrors.value.map(g => g.key)
+})
+
+// 模板检核结果 - 表头结构项
+const templateCheckHeaderItems = computed(() => {
+  const hc = result.value?._templateCheck?.headerCheck
+  if (!hc) return []
+  const map = [
+    { key: 'productComposition', label: '产品组成' },
+    { key: 'packaging', label: '包材组成' },
+    { key: 'singleProduct', label: '单个成品组成' },
+    { key: 'bomCost', label: 'BOM成本合计' }
+  ]
+  return map.map(item => ({
+    ...item,
+    found: hc[item.key]?.found || false,
+    rowIndex: hc[item.key]?.rowIndex
+  }))
+})
+
+// 模板检核结果 - 数据校验项
+const templateCheckDataItems = computed(() => {
+  const dc = result.value?._templateCheck?.dataCheck
+  if (!dc) return []
+  const items = []
+  if (dc.productComposition) {
+    items.push({
+      key: 'productComposition',
+      label: '产品组成',
+      rows: dc.productComposition.dataRows,
+      errors: dc.productComposition.errorRows
+    })
+  }
+  if (dc.packaging) {
+    items.push({
+      key: 'packaging',
+      label: '包材组成',
+      rows: dc.packaging.dataRows,
+      errors: dc.packaging.errorRows
+    })
+  }
+  if (dc.singleProduct) {
+    items.push({
+      key: 'singleProduct',
+      label: '单个成品组成',
+      rows: dc.singleProduct.dataRows,
+      errors: dc.singleProduct.errorRows
+    })
+  }
+  if (dc.bomCost) {
+    items.push({
+      key: 'bomCost',
+      label: 'BOM成本合计',
+      rows: dc.bomCost.dataRows,
+      errors: dc.bomCost.errorRows
+    })
+  }
+  if (dc.productInfo) {
+    items.push({
+      key: 'productInfo',
+      label: '产品信息',
+      rows: dc.productInfo.found ? 1 : 0,
+      errors: dc.productInfo.errors
+    })
+  }
+  return items
 })
 
 const totalPrice = computed(() => result.value?.totalPrice || 0)
@@ -919,4 +1031,20 @@ const onCorrectionSaved = async () => {
   font-weight: 600;
   margin-top: 2px;
 }
+
+/* 模板检核结果卡片 */
+.template-check-card :deep(.el-card__body) { padding: 0; }
+.template-check-card :deep(.el-collapse) { border: none; }
+.template-check-card :deep(.el-collapse-item__header) { padding: 12px 16px; height: auto; border: none; }
+.template-check-card :deep(.el-collapse-item__wrap) { border: none; }
+.template-check-card :deep(.el-collapse-item__content) { padding: 0 16px 16px; }
+.template-check-title { display: flex; align-items: center; gap: 10px; font-size: 15px; font-weight: 600; color: #1d2129; }
+.template-check-body { display: flex; flex-direction: column; gap: 16px; }
+.template-check-section { background: #fafbfc; border-radius: 6px; padding: 12px 14px; }
+.tcs-title { font-size: 13px; font-weight: 600; color: #1d2129; margin-bottom: 10px; }
+.tcs-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; }
+.tcs-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 10px; background: #fff; border-radius: 4px; border: 1px solid #e5e6eb; }
+.tcs-label { font-size: 13px; color: #606266; }
+.tcs-stat { font-size: 12px; color: #909399; }
+.tcs-error { color: #f56c6c; font-weight: 600; }
 </style>
