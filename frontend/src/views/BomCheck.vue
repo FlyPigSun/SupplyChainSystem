@@ -213,8 +213,10 @@
         </el-col>
       </el-row>
 
-      <!-- BOM成本合计 -->
-      <el-card v-if="result.bomCostSummary && result.bomCostSummary.length > 0" shadow="never" class="result-card bom-cost-card">
+      <el-row :gutter="12">
+        <el-col :xs="24" :sm="12" v-if="result.bomCostSummary && result.bomCostSummary.length > 0">
+          <!-- BOM成本合计 -->
+          <el-card shadow="never" class="result-card bom-cost-card">
         <template #header>
           <div class="card-header">
             <span class="card-header-title">BOM成本合计</span>
@@ -299,9 +301,10 @@
           </div>
         </div>
       </el-card>
-
-      <!-- 价格差异 -->
-      <el-card shadow="never" class="result-card">
+        </el-col>
+        <el-col :xs="24" :sm="12">
+          <!-- 价格差异 -->
+          <el-card shadow="never" class="result-card">
         <template #header>
           <div class="card-header">
             <span class="card-header-title">价格核查（所有分节）</span>
@@ -483,6 +486,8 @@
         
         <el-empty v-else description="无价格核查数据" :image-size="60" />
       </el-card>
+        </el-col>
+      </el-row>
       </template>
     </div>
   </div>
@@ -931,7 +936,7 @@ const onCorrectionSaved = async () => {
 
 /* BOM成本合计表格 */
 .bom-cost-card .bom-cost-table {
-  max-width: 680px;
+  width: 100%;
 }
 .bom-cost-card :deep(.bom-cost-warning-row) {
   background-color: #fef0f0 !important;
