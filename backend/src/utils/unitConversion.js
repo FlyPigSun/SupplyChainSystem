@@ -21,6 +21,13 @@ const UNIT_CONVERSIONS = {
  */
 function extractWeightKg(spec) {
   if (!spec) return null;
+
+  // 优先处理 "10kg*2袋/箱" 这种乘法规格（提取总重量）
+  const multiMatch = String(spec).match(/(\d+(?:\.\d+)?)\s*kg\s*[*×]\s*(\d+)/i);
+  if (multiMatch) {
+    return Math.round(parseFloat(multiMatch[1]) * parseFloat(multiMatch[2]) * 10000) / 10000;
+  }
+
   const match = String(spec).match(/(\d+(?:\.\d+)?)\s*(kg|克|g|斤|升|L|ml)/i);
   if (!match) return null;
 
