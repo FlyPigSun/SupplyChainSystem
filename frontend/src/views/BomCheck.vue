@@ -323,11 +323,6 @@
         <el-table v-if="!isMobile && result.priceDiffs?.length" :data="result.priceDiffs" stripe size="small" :row-class-name="priceRowClass">
           <el-table-column prop="name" label="原料名称" min-width="100" show-overflow-tooltip />
           <el-table-column prop="brandSpec" label="品牌规格" min-width="100" show-overflow-tooltip />
-          <el-table-column prop="section" label="分节" width="70">
-            <template #default="{ row }">
-              <el-tag size="small" type="info">{{ row.section || '-' }}</el-tag>
-            </template>
-          </el-table-column>
           <el-table-column label="核算表含税价" width="110">
             <template #default="{ row }">
               <span v-if="row.auditTaxPrice !== null">¥{{ row.auditTaxPrice.toFixed(2) }}</span>
@@ -403,7 +398,6 @@
           <div v-for="(row, idx) in result.priceDiffs" :key="idx" class="mobile-card" :class="{ 'mobile-card-fuzzy': row.matchType === 'fuzzy', 'mobile-card-flavor': row.matchType === 'flavor_diff', 'mobile-card-corrected': row.corrected }">
             <div class="mobile-card-header">
               <div class="mobile-card-title">{{ row.name }}</div>
-              <el-tag size="small" type="info">{{ row.section || '-' }}</el-tag>
             </div>
             <div class="mobile-card-body">
               <div class="mobile-card-row">
