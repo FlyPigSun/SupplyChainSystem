@@ -1300,6 +1300,24 @@ async function runBomCheck(rows, fileName) {
     };
   });
 
+  // 按优先级排序：价格差异 > 模糊匹配 > 品牌匹配 > 未匹配 > 其他
+  const priorityMap = {
+    'diff': 1,
+    'fuzzy': 2,
+    'brand_model': 3,
+    'noprice': 4
+  };
+  priceDiffs.sort((a, b) => {
+    const getPriority = (item) => {
+      if (item.status === 'diff') return priorityMap['diff'];
+      if (item.matchType === 'fuzzy') return priorityMap['fuzzy'];
+      if (item.matchType === 'brand_model') return priorityMap['brand_model'];
+      if (item.status === 'noprice' || item.matchType === null) return priorityMap['noprice'];
+      return 99;
+    };
+    return getPriority(a) - getPriority(b);
+  });
+
   const priceDiffCount = priceDiffs.filter(d => d.status === 'diff').length;
   const fuzzyCount = priceDiffs.filter(d => d.matchType === 'fuzzy').length;
   const flavorDiffCount = priceDiffs.filter(d => d.matchType === 'flavor_diff').length;
