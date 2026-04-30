@@ -325,7 +325,8 @@
               <el-tag v-else type="info" size="small">无</el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="核算表不含税" width="110">
+          <!-- 核算表不含税列：已隐藏 -->
+          <el-table-column v-if="false" label="核算表不含税" width="110">
             <template #default="{ row }">
               <span v-if="row.auditExTaxPrice">¥{{ row.auditExTaxPrice.toFixed(2) }}</span>
               <span v-else>-</span>
@@ -407,7 +408,8 @@
                   <el-tag v-else type="info" size="small">无</el-tag>
                 </span>
               </div>
-              <div class="mobile-card-row">
+              <!-- 核算表不含税：已隐藏 -->
+              <div v-if="false" class="mobile-card-row">
                 <span class="mobile-card-label">核算表不含税</span>
                 <span class="mobile-card-value">
                   <template v-if="row.auditExTaxPrice">¥{{ row.auditExTaxPrice.toFixed(2) }}</template>
