@@ -12,14 +12,14 @@ LOG_FILE="/var/log/supplychain-app.log"
 JWT_SECRET="supply_chain_secret_2024"
 
 echo "=========================================="
-echo "  供应链系统后端服务重启"
+echo "  供应链系统服务重启"
 echo "  时间: $(date '+%Y-%m-%d %H:%M:%S')"
 echo "=========================================="
 
 cd "$APP_DIR"
 
 # 1. 停止旧进程
-echo "[1/5] 停止旧进程..."
+echo "[1/6] 停止旧进程..."
 OLD_PIDS=$(lsof -t -i:$PORT 2>/dev/null || true)
 if [ -n "$OLD_PIDS" ]; then
     echo "      发现端口 $PORT 被占用，PID: $OLD_PIDS"
@@ -46,21 +46,23 @@ else
 fi
 
 # 2. 拉取最新代码
-echo "[2/5] 拉取最新代码..."
+echo "[2/6] 拉取最新代码..."
 cd /var/www/SupplyChainSystem
 git checkout -- . 2>/dev/null || true
-git pull origin master 2>&1 | grep -E "(Updating|Fast-forward|Already up)" || echo "      代码已是最新"
+PULL_OUTPUT=$(git pull origin master 2>&1)
+echo "$PULL_OUTPUT" | grep -E "(Updating|Fast-forward|Already up)" || echo "      代码已是最新"
+NEED_BUILD=$(echo "$PULL_OUTPUT" | grep -c "Updating\|Fast-forward" || true)
 cd "$APP_DIR"
 
 # 3. 启动新进程
-echo "[3/5] 启动新进程..."
+echo "[3/6] 启动新进程..."
 export JWT_SECRET="$JWT_SECRET"
 nohup node $APP_ENTRY >> "$LOG_FILE" 2>&1 &
 NEW_PID=$!
 echo "      新进程 PID: $NEW_PID"
 
 # 4. 等待服务就绪
-echo "[4/5] 等待服务就绪..."
+echo "[4/6] 等待服务就绪..."
 READY=0
 for i in {1..15}; do
     sleep 1
@@ -79,7 +81,7 @@ if [ $READY -eq 0 ]; then
 fi
 
 # 5. 健康检查
-echo "[5/5] 健康检查..."
+echo "[5/6] 健康检查..."
 sleep 2
 RESPONSE=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$PORT/api/product-labels?limit=1" 2>/dev/null || echo "000")
 
@@ -88,6 +90,23 @@ if [ "$RESPONSE" = "401" ] || [ "$RESPONSE" = "200" ]; then
 else
     echo "      ⚠️  服务响应异常 (HTTP $RESPONSE)"
     echo "      查看日志: tail -50 $LOG_FILE"
+fi
+
+# 6. 前端构建（如有代码更新）
+if [ "$NEED_BUILD" -gt 0 ]; then
+    echo ""
+    echo "[6/6] 检测到代码更新，构建前端..."
+    cd /var/www/SupplyChainSystem/frontend
+    rm -rf dist
+    npm run build >> /tmp/frontend-build.log 2>&1
+    if [ $? -eq 0 ]; then
+        echo "      ✅ 前端构建完成"
+    else
+        echo "      ❌ 前端构建失败，查看日志: tail -50 /tmp/frontend-build.log"
+    fi
+else
+    echo ""
+    echo "[6/6] 代码无更新，跳过前端构建"
 fi
 
 echo ""
