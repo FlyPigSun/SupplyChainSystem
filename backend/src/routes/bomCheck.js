@@ -342,6 +342,8 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
   const previewProduct = [], previewPack = [], previewSingle = [], previewBom = [], previewInfo = [];
   let headerProduct = [], headerPack = [], headerSingle = [], headerBom = [], headerInfo = [];
   let headerProductMerges = [], headerPackMerges = [], headerSingleMerges = [], headerBomMerges = [], headerInfoMerges = [];
+  // 各区域问题单元格（行号+字段名）
+  const errorCellsProduct = [], errorCellsPack = [], errorCellsSingle = [], errorCellsBom = [], errorCellsInfo = [];
 
   // ========== 合法性校验辅助函数 ==========
 
@@ -510,6 +512,7 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
       // 全空行也提示数据不完整（用户要求模板中不应留空行）
       if (nonEmpty.length === 0) {
         errors.push(`产品组成第${i + 1}行数据不完整，缺少：原料名、重量、含税价、不含税价、金额`);
+        errorCellsProduct.push({ rowNum: i + 1, fields: ['原料名', '重量', '含税单价', '不含税单价', '金额'] });
         continue;
       }
 
@@ -517,15 +520,27 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
       const missing = checkAllNonEmpty(r, fieldMap);
       if (missing.length > 0) {
         errors.push(`产品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+        errorCellsProduct.push({ rowNum: i + 1, fields: missing });
         continue; // 有空值，跳过合法性校验
       }
 
       // (b) 合法性校验
+      const beforeRange = errors.length;
       checkRange(r[COL_WEIGHT], 0, null, '重量', i + 1, '产品组成'); // >0
+      if (errors.length > beforeRange) errorCellsProduct.push({ rowNum: i + 1, fields: ['重量'] });
+
+      const beforeTax = errors.length;
       checkRange(r[COL_TAX_PRICE], 0, null, '含税单价', i + 1, '产品组成'); // ≥0
+      if (errors.length > beforeTax) errorCellsProduct.push({ rowNum: i + 1, fields: ['含税单价'] });
+
+      const beforeEx = errors.length;
       checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '产品组成'); // ≥0
+      if (errors.length > beforeEx) errorCellsProduct.push({ rowNum: i + 1, fields: ['不含税单价'] });
+
       // 金额公式校验
+      const beforeFormula = errors.length;
       checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '产品组成');
+      if (errors.length > beforeFormula) errorCellsProduct.push({ rowNum: i + 1, fields: ['金额'] });
     }
     statsProductErrs = errors.length - errStart;
   }
@@ -582,16 +597,31 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
       const missing = checkAllNonEmpty(r, fieldMap);
       if (missing.length > 0) {
         errors.push(`包材组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+        errorCellsPack.push({ rowNum: i + 1, fields: missing });
         continue;
       }
 
       // (b) 合法性校验
+      const beforeRange = errors.length;
       checkRange(r[COL_WEIGHT], 0, null, '数量', i + 1, '包材组成'); // >0
+      if (errors.length > beforeRange) errorCellsPack.push({ rowNum: i + 1, fields: ['数量'] });
+
+      const beforeTax = errors.length;
       checkRange(r[COL_TAX_PRICE], 0, null, '含税单价', i + 1, '包材组成'); // ≥0
+      if (errors.length > beforeTax) errorCellsPack.push({ rowNum: i + 1, fields: ['含税单价'] });
+
+      const beforeEx = errors.length;
       checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '包材组成'); // ≥0
+      if (errors.length > beforeEx) errorCellsPack.push({ rowNum: i + 1, fields: ['不含税单价'] });
+
+      const beforePct = errors.length;
       checkPercentRange(r[COL_PERCENT], '百分比', i + 1, '包材组成');
+      if (errors.length > beforePct) errorCellsPack.push({ rowNum: i + 1, fields: ['百分比'] });
+
       // 金额公式校验（包材：数量 × 含税单价，单价是单个价格，不除1000）
+      const beforeFormula = errors.length;
       checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '包材组成', true);
+      if (errors.length > beforeFormula) errorCellsPack.push({ rowNum: i + 1, fields: ['金额'] });
     }
     statsPackErrs = errors.length - errStart;
   }
@@ -668,12 +698,18 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
         const missing = checkAllNonEmpty(r, summaryFieldMap);
         if (missing.length > 0) {
           errors.push(`单个成品组成第${i + 1}行(${cell0})数据不完整，缺少：${missing.join('、')}`);
+          errorCellsSingle.push({ rowNum: i + 1, fields: missing });
           continue;
         }
 
         // (b) 汇总行合法性校验：不含税单价 ≥ 0，组成 × 不含税单价 = 金额
+        const beforeEx = errors.length;
         checkRange(r[spColExPrice], 0, null, '不含税单价', i + 1, '单个成品组成');
+        if (errors.length > beforeEx) errorCellsSingle.push({ rowNum: i + 1, fields: ['不含税单价'] });
+
+        const beforeFormula = errors.length;
         checkAmountFormula(r[spColWeight], r[spColExPrice], r[spColCost], i + 1, `单个成品组成(${cell0})`, true, '不含税单价');
+        if (errors.length > beforeFormula) errorCellsSingle.push({ rowNum: i + 1, fields: ['金额'] });
 
       } else if (summaryOnlyAmount.includes(cell0)) {
         // (a) 成品合计等：只要求金额非空
@@ -683,6 +719,7 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
         const missing = checkAllNonEmpty(r, amountFieldMap);
         if (missing.length > 0) {
           errors.push(`单个成品组成第${i + 1}行(${cell0})数据不完整，缺少：${missing.join('、')}`);
+          errorCellsSingle.push({ rowNum: i + 1, fields: missing });
           continue;
         }
 
@@ -691,15 +728,27 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
         const missing = checkAllNonEmpty(r, fieldMap);
         if (missing.length > 0) {
           errors.push(`单个成品组成第${i + 1}行数据不完整，缺少：${missing.join('、')}`);
+          errorCellsSingle.push({ rowNum: i + 1, fields: missing });
           continue;
         }
 
         // (b) 普通行合法性校验
+        const beforeWeight = errors.length;
         checkRange(r[spColWeight], 0, null, '组成', i + 1, '单个成品组成'); // >0
+        if (errors.length > beforeWeight) errorCellsSingle.push({ rowNum: i + 1, fields: ['组成'] });
+
+        const beforeEx = errors.length;
         checkRange(r[spColExPrice], 0, null, '不含税单价', i + 1, '单个成品组成'); // ≥0
+        if (errors.length > beforeEx) errorCellsSingle.push({ rowNum: i + 1, fields: ['不含税单价'] });
+
+        const beforePct = errors.length;
         checkPercentRange(r[spColPercent], '百分比', i + 1, '单个成品组成');
+        if (errors.length > beforePct) errorCellsSingle.push({ rowNum: i + 1, fields: ['百分比'] });
+
         // 金额公式校验：组成(g) × 不含税单价 = 金额（不除1000）
+        const beforeFormula = errors.length;
         checkAmountFormula(r[spColWeight], r[spColExPrice], r[spColCost], i + 1, '单个成品组成', true, '不含税单价');
+        if (errors.length > beforeFormula) errorCellsSingle.push({ rowNum: i + 1, fields: ['金额'] });
       }
     }
     statsSingleErrs = errors.length - errStart;
@@ -779,12 +828,18 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
         if (isEmptyCell(r[COL_PERCENT])) missing.push('百分比');
         if (missing.length > 0) {
           errors.push(`BOM成本合计「${matchedItem.name}」${missing.join('、')}不能为空`);
+          errorCellsBom.push({ rowNum: i + 1, fields: missing });
           continue;
         }
 
         // 合法性校验
+        const beforeCost = errors.length;
         checkRange(r[COL_COST], null, null, '金额', i + 1, 'BOM成本合计'); // 仅检查是否为数字
+        if (errors.length > beforeCost) errorCellsBom.push({ rowNum: i + 1, fields: ['金额'] });
+
+        const beforePct = errors.length;
         checkPercentRange(r[COL_PERCENT], '百分比', i + 1, 'BOM成本合计');
+        if (errors.length > beforePct) errorCellsBom.push({ rowNum: i + 1, fields: ['百分比'] });
       }
     }
     statsBomErrs = errors.length - errStart;
