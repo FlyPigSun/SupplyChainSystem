@@ -764,8 +764,29 @@ const openPreview = (item) => {
   previewTitle.value = item.label + ' — 原始数据预览'
   previewRows.value = item.previewRows
   previewHeader.value = item.header || []
-  previewHeaderMerges.value = item.headerMerges || []
   previewType.value = item.key || ''
+
+  // 优先使用后端合并信息；若为空则根据header内容自动生成
+  let merges = item.headerMerges || []
+  const hasRealMerge = merges.some(m => m && (m.rowspan > 1 || m.colspan > 1))
+  if (!hasRealMerge && previewHeader.value.length > 0) {
+    merges = previewHeader.value.map((name, idx) => {
+      if (!name) {
+        for (let i = idx - 1; i >= 0; i--) {
+          if (previewHeader.value[i]) return { rowspan: 0, colspan: 0 }
+        }
+        return { rowspan: 1, colspan: 1 }
+      }
+      let colspan = 1
+      for (let i = idx + 1; i < previewHeader.value.length; i++) {
+        if (!previewHeader.value[i]) colspan++
+        else break
+      }
+      return { rowspan: 1, colspan }
+    })
+  }
+  previewHeaderMerges.value = merges
+
   showPreviewDialog.value = true
 }
 
