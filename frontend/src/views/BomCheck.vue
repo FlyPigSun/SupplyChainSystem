@@ -36,13 +36,6 @@
         @change="handleFileChange"
       />
 
-      <div v-if="fileInfo" class="file-info">
-        <el-icon><Document /></el-icon>
-        <span>{{ fileInfo }}</span>
-        <span v-if="loading" style="margin-left: 8px"><el-icon class="is-loading"><Loading /></el-icon></span>
-      </div>
-
-
     </el-card>
 
     <!-- 人工修正对话框 -->
