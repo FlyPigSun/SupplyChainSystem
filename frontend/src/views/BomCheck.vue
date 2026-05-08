@@ -760,6 +760,29 @@ const openPreview = (item) => {
   previewHeader.value = item.header || []
   previewType.value = item.key || ''
 
+  // 过滤完全为空的列：遍历每一列，检查是否所有行该列为空
+  const rowsData = item.previewRows || []
+  const colCount = previewHeader.value.length || (rowsData[0]?.cells || []).length
+  const keepCols = []
+  for (let c = 0; c < colCount; c++) {
+    const allEmpty = rowsData.every(row => {
+      const val = row.cells?.[c]
+      return val == null || val === '' || val === '(空)'
+    })
+    if (!allEmpty) keepCols.push(c)
+  }
+  // 过滤 previewRows：只保留非空列
+  const filteredRows = rowsData.map(row => ({
+    ...row,
+    cells: keepCols.map(c => row.cells?.[c] ?? ''),
+    merges: row.merges ? keepCols.map(c => row.merges?.[c] ?? { rowspan: 1, colspan: 1 }) : undefined
+  }))
+  previewRows.value = filteredRows
+  // 过滤 header
+  if (previewHeader.value.length > 0) {
+    previewHeader.value = keepCols.map(c => previewHeader.value[c] ?? '')
+  }
+
   // 优先使用后端合并信息；若为空则根据header内容自动生成
   let merges = item.headerMerges || []
   const hasRealMerge = merges.some(m => m && (m.rowspan > 1 || m.colspan > 1))
