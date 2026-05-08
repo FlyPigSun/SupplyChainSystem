@@ -55,7 +55,7 @@
           :label="previewHeader.length > 0 ? colName : '列' + (colIdx + 1)"
         >
           <template #default="{ row }">
-            <span :class="{ 'cell-empty': !row.cells[colIdx] }">{{ formatPreviewCell(row.cells[colIdx], colName, colIdx) }}</span>
+            <span :class="{ 'cell-empty': !row.cells[colIdx], 'cell-error': row.cells[colIdx] === '(空)' }">{{ formatPreviewCell(row.cells[colIdx], colName, colIdx) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -898,6 +898,7 @@ const previewSpanMethod = ({ row, column, rowIndex, columnIndex, type }) => {
 .tcs-label-link { color: #409eff; cursor: pointer; text-decoration: underline; }
 .tcs-label-link:hover { color: #66b1ff; }
 .cell-empty { color: #c0c4cc; font-style: italic; }
+.cell-error { background: #fef0f0; }
 @media (max-width: 768px) {
   .bom-check-page { padding: 12px; }
   .page-title { font-size: 18px; }
