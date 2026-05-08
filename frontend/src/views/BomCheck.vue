@@ -5,7 +5,13 @@
 
     <!-- 上传区域 -->
     <el-card shadow="never" class="upload-card">
-      <div class="card-section-title">上传成本核算表</div>
+      <div class="upload-card-header">
+        <div class="card-section-title">上传成本核算表</div>
+        <el-button v-if="hasResult" link type="danger" size="small" @click="clearResult">
+          <el-icon><CircleCloseFilled /></el-icon>
+          <span style="margin-left: 4px">清空结果</span>
+        </el-button>
+      </div>
       
       <div
         class="upload-zone"
@@ -706,6 +712,13 @@ const onCorrectionSaved = async () => {
   if (lastFile.value) await processFile(lastFile.value)
 }
 
+const clearResult = () => {
+  result.value = null
+  fileInfo.value = ''
+  lastFile.value = null
+  ElMessage.success('已清空核查结果')
+}
+
 
 </script>
 
@@ -714,7 +727,8 @@ const onCorrectionSaved = async () => {
 .page-title { font-size: 20px; font-weight: 600; color: #1d2129; margin: 0 0 8px 0; }
 .page-desc { color: #86909c; margin: 0 0 16px 0; font-size: 13px; }
 .upload-card { margin-bottom: 16px; }
-.card-section-title { font-size: 15px; font-weight: 600; color: #1d2129; margin-bottom: 14px; }
+.upload-card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; }
+.card-section-title { font-size: 15px; font-weight: 600; color: #1d2129; margin-bottom: 0; }
 .upload-zone { border: 2px dashed #d0d7e3; border-radius: 8px; padding: 32px; text-align: center; cursor: pointer; transition: all 0.2s; background: #fafbfd; }
 .upload-zone:hover, .upload-zone.drag-over { border-color: #409eff; background: #ecf5ff; }
 .upload-icon { color: #409eff; margin-bottom: 8px; }
