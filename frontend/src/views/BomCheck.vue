@@ -48,8 +48,7 @@
 
     <!-- 板块原始数据预览对话框 -->
     <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="900px" destroy-on-close>
-      <el-table :data="previewRows" size="small" border style="width: 100%">
-        <el-table-column prop="rowNum" label="行号" width="60" />
+      <el-table :data="previewRows" size="small" border style="width: 100%" :span-method="previewSpanMethod">
         <el-table-column
           v-for="(colName, colIdx) in (previewHeader.length > 0 ? previewHeader : previewRows[0]?.cells || [])"
           :key="colIdx"
@@ -775,6 +774,32 @@ const formatPreviewCell = (val, colName) => {
     return num.toFixed(2)
   }
   return s
+}
+
+// 预览表格合并计算（相邻相同值的单元格纵向合并）
+const previewSpanMethod = ({ row, column, rowIndex, columnIndex }) => {
+  if (!previewRows.value || previewRows.value.length === 0) return { rowspan: 1, colspan: 1 }
+  // 跳过第一个空列（兼容旧数据）
+  const colIdx = columnIndex
+  const cells = previewRows.value.map(r => r.cells[colIdx])
+  // 向上查找相同值的连续范围
+  if (rowIndex > 0 && cells[rowIndex] === cells[rowIndex - 1]) {
+    // 检查是否是合并范围内的第一个单元格
+    let startIdx = rowIndex
+    while (startIdx > 0 && cells[startIdx] === cells[startIdx - 1]) {
+      startIdx--
+    }
+    if (startIdx !== rowIndex) {
+      // 当前单元格被上方的合并单元格覆盖
+      return { rowspan: 0, colspan: 0 }
+    }
+  }
+  // 向下计算连续相同值的行数
+  let rowspan = 1
+  while (rowIndex + rowspan < cells.length && cells[rowIndex + rowspan] === cells[rowIndex]) {
+    rowspan++
+  }
+  return rowspan > 1 ? { rowspan, colspan: 1 } : { rowspan: 1, colspan: 1 }
 }
 
 
