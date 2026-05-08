@@ -911,9 +911,9 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
       packaging: { dataRows: statsPackRows, errorRows: statsPackErrs, previewRows: previewPack, header: headerPack, headerMerges: headerPackMerges, errorCells: errorCellsPack },
       singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs, previewRows: previewSingle, header: headerSingle, headerMerges: headerSingleMerges, errorCells: errorCellsSingle },
       bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs, previewRows: previewBom, header: headerBom, headerMerges: headerBomMerges, errorCells: errorCellsBom },
-      productInfo: { found: statsInfoFound, errors: statsInfoErrs, previewRows: previewInfo, header: headerInfo, headerMerges: headerInfoMerges, errorCells: errorCellsInfo }
-    },
-    colMap
+      productInfo: { found: statsInfoFound, errors: statsInfoErrs, previewRows: previewInfo, header: headerInfo, headerMerges: headerInfoMerges, errorCells: errorCellsInfo },
+      colMap
+    }
   };
 }
 
