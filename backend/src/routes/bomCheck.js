@@ -1528,7 +1528,10 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ ok: false, msg: '请上传文件' });
 
-    const fileName = req.body.productName || req.file.originalname.replace(/\.xlsx?$/i, '').trim();
+    // 修正中文文件名乱码：multer 可能用 latin1 解码 UTF-8 文件名
+    const rawName = req.file.originalname;
+    const fixedName = Buffer.from(rawName, 'latin1').toString('utf8');
+    const fileName = req.body.productName || fixedName.replace(/\.xlsx?$/i, '').trim();
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
