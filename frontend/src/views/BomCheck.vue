@@ -53,6 +53,18 @@
       @saved="onCorrectionSaved"
     />
 
+    <!-- 板块原始数据预览对话框 -->
+    <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="800px" destroy-on-close>
+      <el-table :data="previewRows" size="small" border style="width: 100%">
+        <el-table-column prop="rowNum" label="行号" width="60" />
+        <el-table-column v-for="(_, colIdx) in previewRows[0]?.cells" :key="colIdx" :label="'列' + (colIdx + 1)">
+          <template #default="{ row }">
+            <span :class="{ 'cell-empty': !row.cells[colIdx] }">{{ row.cells[colIdx] || '(空)' }}</span>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
     <!-- 核查结果 -->
     <div v-if="hasResult" class="result-section">
       <el-alert
@@ -154,10 +166,10 @@
                 </div>
                 <!-- 数据校验 -->
                 <div class="template-check-section">
-                  <div class="tcs-title">数据校验</div>
+                  <div class="tcs-title">数据校验（点击板块名预览原始数据）</div>
                   <div class="tcs-grid">
                     <div v-for="item in templateCheckDataItems" :key="item.key" class="tcs-item">
-                      <span class="tcs-label">{{ item.label }}</span>
+                      <span class="tcs-label tcs-label-link" @click="openPreview(item)">{{ item.label }}</span>
                       <span class="tcs-stat">
                         <template v-if="item.rows > 0">{{ item.rows }} 行</template>
                         <template v-else>-</template>
@@ -510,6 +522,11 @@ const lastFile = ref(null)
 const showCorrectionDialog = ref(false)
 const correctingItem = ref(null)
 
+// 预览对话框状态
+const showPreviewDialog = ref(false)
+const previewTitle = ref('')
+const previewRows = ref([])
+
 // 模板检核结果折叠状态（默认折叠）
 const activeTemplateCheck = ref([])
 
@@ -600,7 +617,8 @@ const templateCheckDataItems = computed(() => {
       key: 'productComposition',
       label: '产品组成',
       rows: dc.productComposition.dataRows,
-      errors: dc.productComposition.errorRows
+      errors: dc.productComposition.errorRows,
+      previewRows: dc.productComposition.previewRows || []
     })
   }
   if (dc.packaging) {
@@ -608,7 +626,8 @@ const templateCheckDataItems = computed(() => {
       key: 'packaging',
       label: '包材组成',
       rows: dc.packaging.dataRows,
-      errors: dc.packaging.errorRows
+      errors: dc.packaging.errorRows,
+      previewRows: dc.packaging.previewRows || []
     })
   }
   if (dc.singleProduct) {
@@ -616,7 +635,8 @@ const templateCheckDataItems = computed(() => {
       key: 'singleProduct',
       label: '单个成品组成',
       rows: dc.singleProduct.dataRows,
-      errors: dc.singleProduct.errorRows
+      errors: dc.singleProduct.errorRows,
+      previewRows: dc.singleProduct.previewRows || []
     })
   }
   if (dc.bomCost) {
@@ -624,7 +644,8 @@ const templateCheckDataItems = computed(() => {
       key: 'bomCost',
       label: 'BOM成本合计',
       rows: dc.bomCost.dataRows,
-      errors: dc.bomCost.errorRows
+      errors: dc.bomCost.errorRows,
+      previewRows: dc.bomCost.previewRows || []
     })
   }
   if (dc.productInfo) {
@@ -632,7 +653,8 @@ const templateCheckDataItems = computed(() => {
       key: 'productInfo',
       label: '产品信息',
       rows: dc.productInfo.found ? 1 : 0,
-      errors: dc.productInfo.errors
+      errors: dc.productInfo.errors,
+      previewRows: dc.productInfo.previewRows || []
     })
   }
   return items
@@ -720,6 +742,16 @@ const clearResult = () => {
   ElMessage.success('已清空核查结果')
 }
 
+const openPreview = (item) => {
+  if (!item.previewRows || item.previewRows.length === 0) {
+    ElMessage.info('该板块无预览数据')
+    return
+  }
+  previewTitle.value = item.label + ' — 原始数据预览'
+  previewRows.value = item.previewRows
+  showPreviewDialog.value = true
+}
+
 
 </script>
 
@@ -797,6 +829,9 @@ const clearResult = () => {
 .cost-warning-list { margin-top: 12px; padding: 10px 14px; background: #fef0f0; border-radius: 6px; }
 .cost-warning-item { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #f56c6c; line-height: 1.8; }
 .no-data { color: #c0c4cc; }
+.tcs-label-link { color: #409eff; cursor: pointer; text-decoration: underline; }
+.tcs-label-link:hover { color: #66b1ff; }
+.cell-empty { color: #c0c4cc; font-style: italic; }
 @media (max-width: 768px) {
   .bom-check-page { padding: 12px; }
   .page-title { font-size: 18px; }

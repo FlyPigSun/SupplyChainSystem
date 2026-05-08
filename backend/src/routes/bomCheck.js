@@ -338,6 +338,8 @@ function validateTemplateData(rows, headerDetails) {
   let statsSingleRows = 0, statsSingleErrs = 0;
   let statsBomRows = 0, statsBomErrs = 0;
   let statsInfoFound = false, statsInfoErrs = 0;
+  // 各区域预览数据（原始Excel行，最多20行）
+  const previewProduct = [], previewPack = [], previewSingle = [], previewBom = [], previewInfo = [];
 
   // ========== 合法性校验辅助函数 ==========
 
@@ -484,6 +486,9 @@ function validateTemplateData(rows, headerDetails) {
       if (cell1 === '组成' && cell0 === '工艺') continue;
 
       statsProductRows++;
+      if (previewProduct.length < 20) {
+        previewProduct.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+      }
       const nonEmpty = getNonEmptyFields(r, fieldMap);
       // 全空行也提示数据不完整（用户要求模板中不应留空行）
       if (nonEmpty.length === 0) {
@@ -538,6 +543,9 @@ function validateTemplateData(rows, headerDetails) {
       if (nonEmpty.length === 0) continue;
 
       statsPackRows++;
+      if (previewPack.length < 20) {
+        previewPack.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+      }
       // (a) 非空校验
       const missing = checkAllNonEmpty(r, fieldMap);
       if (missing.length > 0) {
@@ -598,6 +606,9 @@ function validateTemplateData(rows, headerDetails) {
       if (nonEmpty.length === 0) continue;
 
       statsSingleRows++;
+      if (previewSingle.length < 20) {
+        previewSingle.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+      }
 
       // 区分汇总行和普通行
       const summaryWithPrice = ['胚体成本', '成型成本', '冷加工成本', '包材成本'];
@@ -686,6 +697,9 @@ function validateTemplateData(rows, headerDetails) {
       const matchedItem = requiredItems.find(req => req.keywords.some(kw => itemName.includes(kw)));
       if (matchedItem) {
         statsBomRows++;
+        if (previewBom.length < 20) {
+          previewBom.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+        }
         const missing = [];
         if (isEmptyCell(r[COL_COST])) missing.push('金额');
         if (isEmptyCell(r[COL_PERCENT])) missing.push('百分比');
@@ -709,6 +723,9 @@ function validateTemplateData(rows, headerDetails) {
     const cell0 = String(r[0] || '').trim();
     if (cell0.includes('产品名称')) {
       statsInfoFound = true;
+      if (previewInfo.length < 20) {
+        previewInfo.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+      }
       const errStart = errors.length;
       // (a) 非空校验
       if (isEmptyCell(r[COL_NAME])) {
@@ -746,11 +763,11 @@ function validateTemplateData(rows, headerDetails) {
     valid: errors.length === 0,
     errors,
     stats: {
-      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs },
-      packaging: { dataRows: statsPackRows, errorRows: statsPackErrs },
-      singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs },
-      bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs },
-      productInfo: { found: statsInfoFound, errors: statsInfoErrs }
+      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs, previewRows: previewProduct },
+      packaging: { dataRows: statsPackRows, errorRows: statsPackErrs, previewRows: previewPack },
+      singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs, previewRows: previewSingle },
+      bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs, previewRows: previewBom },
+      productInfo: { found: statsInfoFound, errors: statsInfoErrs, previewRows: previewInfo }
     }
   };
 }
