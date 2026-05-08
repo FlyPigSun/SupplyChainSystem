@@ -716,6 +716,7 @@ const clearResult = () => {
   result.value = null
   fileInfo.value = ''
   lastFile.value = null
+  if (fileInput.value) fileInput.value.value = ''
   ElMessage.success('已清空核查结果')
 }
 
