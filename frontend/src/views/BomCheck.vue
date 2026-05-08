@@ -511,7 +511,6 @@ import CorrectionDialog from '../components/CorrectionDialog.vue'
 
 const fileInput = ref(null)
 const isDragging = ref(false)
-const fileInfo = ref('')
 const result = ref(null)
 const loading = ref(false)
 const lastFile = ref(null)
@@ -711,7 +710,6 @@ const processFile = async (file) => {
     ElMessage.error('只支持 .xlsx 或 .xls 文件')
     return
   }
-  fileInfo.value = `正在核查：${file.name}...`
   loading.value = true
   lastFile.value = file
 
@@ -722,19 +720,15 @@ const processFile = async (file) => {
     if (res.ok) {
       result.value = res
       if (res._validationErrors && res._validationErrors.length > 0) {
-        fileInfo.value = `${file.name} 核查完成 — 模板检核未通过（${res._validationErrors.length} 项错误）`
       } else {
-        fileInfo.value = `${file.name} 核查完成 — 品名: ${res.productName || '未识别'}`
         ElMessage.success('核查完成')
       }
     } else {
       ElMessage.error(res.msg || '核查失败')
-      fileInfo.value = ''
     }
   } catch (error) {
     console.error('核查失败:', error)
     ElMessage.error('核查失败：' + (error.msg || '未知错误'))
-    fileInfo.value = ''
   } finally {
     loading.value = false
   }
@@ -751,7 +745,6 @@ const onCorrectionSaved = async () => {
 
 const clearResult = () => {
   result.value = null
-  fileInfo.value = ''
   lastFile.value = null
   if (fileInput.value) fileInput.value.value = ''
   ElMessage.success('已清空核查结果')
@@ -788,98 +781,22 @@ const openPreview = (item) => {
   }
   previewHeaderMerges.value = merges
 
-  // 解析当前区域的问题单元格
-  previewErrorCells.value = parseErrorCells(result.value?._validationErrors || [], item.key, item.header || [])
+  // 使用后端返回的结构化 errorCells + colMap
+  const colMap = result.value?._templateCheck?.dataCheck?.colMap?.[item.key] || {}
+  const errorCells = result.value?._templateCheck?.dataCheck?.[item.key]?.errorCells || []
+  const cellMap = {}
+  for (const ec of errorCells) {
+    if (!ec.fields || ec.fields.length === 0) continue
+    for (const field of ec.fields) {
+      const colIdx = colMap[field]
+      if (colIdx !== undefined) {
+        cellMap[`${ec.rowNum}-${colIdx}`] = true
+      }
+    }
+  }
+  previewErrorCells.value = cellMap
 
   showPreviewDialog.value = true
-}
-
-// 字段名到列索引映射
-const FIELD_COL_MAP = {
-  productComposition: {
-    '原料名': 2, '原材料': 2,
-    '重量': 4,
-    '含税单价': 5, '含税价': 5,
-    '不含税单价': 6, '不含税价': 6,
-    '金额': 7,
-    '百分比': 8
-  },
-  packaging: {
-    '包材名称': 0,
-    '数量': 4,
-    '含税单价': 5,
-    '不含税单价': 6,
-    '金额': 7,
-    '百分比': 8
-  },
-  singleProduct: {
-    '工艺分项': 0
-  },
-  bomCost: {
-    '项目': 0, '金额': 1, '百分比': 2, '备注': 3
-  },
-  productInfo: {
-    '产品名称': 0,
-    '出成率': 5,
-    '实际出厂价': 7,
-    '净含量': 9
-  }
-}
-
-function parseErrorCells(errors, type, header) {
-  const map = {}
-  if (!errors || errors.length === 0) return map
-
-  const regionNames = {
-    productComposition: '产品组成',
-    packaging: '包材组成',
-    singleProduct: '单个成品组成',
-    bomCost: 'BOM成本合计',
-    productInfo: '产品信息'
-  }
-  const regionName = regionNames[type]
-  if (!regionName) return map
-
-  const fieldMap = { ...FIELD_COL_MAP[type] }
-  if (type === 'singleProduct' && header) {
-    header.forEach((name, idx) => {
-      if (name.includes('组成')) fieldMap['组成'] = idx
-      if (name.includes('不含税单价')) fieldMap['不含税单价'] = idx
-      if (name.includes('金额')) fieldMap['金额'] = idx
-      if (name.includes('百分比')) fieldMap['百分比'] = idx
-    })
-  }
-
-  for (const err of errors) {
-    if (!err.includes(regionName)) continue
-
-    const rowMatch = err.match(/第(\d+)行/)
-    const rowNum = rowMatch ? parseInt(rowMatch[1]) : null
-
-    const fieldMatches = err.match(/「([^」]+)」/g)
-    if (fieldMatches) {
-      fieldMatches.forEach(m => {
-        const field = m.replace(/[「」]/g, '')
-        const colIdx = fieldMap[field]
-        if (colIdx !== undefined && rowNum !== null) {
-          map[`${rowNum}-${colIdx}`] = true
-        }
-      })
-    }
-
-    const missingMatch = err.match(/缺少[：:](.+)/)
-    if (missingMatch) {
-      const fields = missingMatch[1].split(/[、,]/).map(f => f.trim())
-      fields.forEach(field => {
-        const colIdx = fieldMap[field]
-        if (colIdx !== undefined && rowNum !== null) {
-          map[`${rowNum}-${colIdx}`] = true
-        }
-      })
-    }
-  }
-
-  return map
 }
 
 const formatPreviewCell = (val, colName, colIdx) => {
@@ -1019,7 +936,7 @@ const previewCellClassName = ({ row, column, rowIndex, columnIndex }) => {
 .tcs-label-link { color: #409eff; cursor: pointer; text-decoration: underline; }
 .tcs-label-link:hover { color: #66b1ff; }
 .cell-empty { color: #c0c4cc; font-style: italic; }
-:deep(.el-table__cell.cell-error) { background: #fef0f0 !important; }
+:deep(.el-table__body .el-table__cell.cell-error) { background: #fef0f0; }
 @media (max-width: 768px) {
   .bom-check-page { padding: 12px; }
   .page-title { font-size: 18px; }

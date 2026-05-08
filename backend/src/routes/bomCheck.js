@@ -863,48 +863,55 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
         });
       }
       const errStart = errors.length;
+      const infoFields = [];
       // (a) 非空校验
-      if (isEmptyCell(r[COL_NAME])) {
-        errors.push('产品名称不能为空');
-      }
-      if (isEmptyCell(r[COL_TAX_PRICE])) {
-        errors.push('出成率不能为空');
-      }
-      if (isEmptyCell(r[COL_COST])) {
-        errors.push('实际出厂价不能为空');
-      }
-      if (isEmptyCell(r[9])) {
-        errors.push('净含量不能为空');
-      }
+      if (isEmptyCell(r[COL_NAME])) { errors.push('产品名称不能为空'); infoFields.push('产品名称'); }
+      if (isEmptyCell(r[COL_TAX_PRICE])) { errors.push('出成率不能为空'); infoFields.push('出成率'); }
+      if (isEmptyCell(r[COL_COST])) { errors.push('实际出厂价不能为空'); infoFields.push('实际出厂价'); }
+      if (isEmptyCell(r[9])) { errors.push('净含量不能为空'); infoFields.push('净含量'); }
 
       // (b) 合法性校验
       const yieldRateVal = parsePercentValue(r[COL_TAX_PRICE]);
       if (yieldRateVal !== null && (yieldRateVal < 0 || yieldRateVal > 100)) {
         errors.push(`出成率必须在 0~100 之间，当前值为 ${yieldRateVal}`);
+        infoFields.push('出成率');
       }
       const factoryPriceVal = parseNumberValue(r[COL_COST]);
       if (factoryPriceVal !== null && factoryPriceVal < 0) {
         errors.push(`实际出厂价必须 ≥ 0，当前值为 ${factoryPriceVal}`);
+        infoFields.push('实际出厂价');
       }
       const netWeightVal = parseNumberValue(r[9]);
       if (netWeightVal !== null && netWeightVal <= 0) {
         errors.push(`净含量必须 > 0，当前值为 ${netWeightVal}`);
+        infoFields.push('净含量');
       }
+      if (infoFields.length > 0) errorCellsInfo.push({ rowNum: i + 1, fields: [...new Set(infoFields)] });
       statsInfoErrs = errors.length - errStart;
       break;
     }
   }
 
+  // 列索引映射（供前端定位问题单元格）
+  const colMap = {
+    productComposition: { '原料名': COL_NAME, '原材料': COL_NAME, '重量': COL_WEIGHT, '含税单价': COL_TAX_PRICE, '含税价': COL_TAX_PRICE, '不含税单价': COL_EX_PRICE, '不含税价': COL_EX_PRICE, '金额': COL_COST },
+    packaging: { '包材名称': 0, '数量': COL_WEIGHT, '含税单价': COL_TAX_PRICE, '不含税单价': COL_EX_PRICE, '金额': COL_COST, '百分比': COL_PERCENT },
+    singleProduct: { '工艺分项': 0, '组成': spColWeight, '不含税单价': spColExPrice, '金额': spColCost, '百分比': spColPercent },
+    bomCost: { '项目': 0, '金额': COL_COST, '百分比': COL_PERCENT, '备注': COL_PERCENT + 1 },
+    productInfo: { '产品名称': COL_NAME, '出成率': COL_TAX_PRICE, '实际出厂价': COL_COST, '净含量': 9 }
+  };
+
   return {
     valid: errors.length === 0,
     errors,
     stats: {
-      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs, previewRows: previewProduct, header: headerProduct, headerMerges: headerProductMerges },
-      packaging: { dataRows: statsPackRows, errorRows: statsPackErrs, previewRows: previewPack, header: headerPack, headerMerges: headerPackMerges },
-      singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs, previewRows: previewSingle, header: headerSingle, headerMerges: headerSingleMerges },
-      bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs, previewRows: previewBom, header: headerBom, headerMerges: headerBomMerges },
-      productInfo: { found: statsInfoFound, errors: statsInfoErrs, previewRows: previewInfo, header: headerInfo, headerMerges: headerInfoMerges }
-    }
+      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs, previewRows: previewProduct, header: headerProduct, headerMerges: headerProductMerges, errorCells: errorCellsProduct },
+      packaging: { dataRows: statsPackRows, errorRows: statsPackErrs, previewRows: previewPack, header: headerPack, headerMerges: headerPackMerges, errorCells: errorCellsPack },
+      singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs, previewRows: previewSingle, header: headerSingle, headerMerges: headerSingleMerges, errorCells: errorCellsSingle },
+      bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs, previewRows: previewBom, header: headerBom, headerMerges: headerBomMerges, errorCells: errorCellsBom },
+      productInfo: { found: statsInfoFound, errors: statsInfoErrs, previewRows: previewInfo, header: headerInfo, headerMerges: headerInfoMerges, errorCells: errorCellsInfo }
+    },
+    colMap
   };
 }
 
