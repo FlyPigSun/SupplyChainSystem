@@ -55,7 +55,7 @@
           :label="previewHeader.length > 0 ? colName : '列' + (colIdx + 1)"
         >
           <template #default="{ row }">
-            <span :class="{ 'cell-empty': !row.cells[colIdx], 'cell-error': row.cells[colIdx] === '(空)' }">{{ formatPreviewCell(row.cells[colIdx], colName, colIdx) }}</span>
+            <span :class="{ 'cell-empty': row.cells[colIdx] === '(空)', 'cell-error': previewErrorCells[`${row.rowNum}-${colIdx}`] }">{{ formatPreviewCell(row.cells[colIdx], colName, colIdx) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -526,6 +526,7 @@ const previewRows = ref([])
 const previewHeader = ref([])
 const previewHeaderMerges = ref([])
 const previewType = ref('')
+const previewErrorCells = ref({})
 
 // 模板检核结果折叠状态（默认折叠）
 const activeTemplateCheck = ref([])
@@ -787,7 +788,98 @@ const openPreview = (item) => {
   }
   previewHeaderMerges.value = merges
 
+  // 解析当前区域的问题单元格
+  previewErrorCells.value = parseErrorCells(result.value?._validationErrors || [], item.key, item.header || [])
+
   showPreviewDialog.value = true
+}
+
+// 字段名到列索引映射
+const FIELD_COL_MAP = {
+  productComposition: {
+    '原料名': 2, '原材料': 2,
+    '重量': 4,
+    '含税单价': 5, '含税价': 5,
+    '不含税单价': 6, '不含税价': 6,
+    '金额': 7,
+    '百分比': 8
+  },
+  packaging: {
+    '包材名称': 0,
+    '数量': 4,
+    '含税单价': 5,
+    '不含税单价': 6,
+    '金额': 7,
+    '百分比': 8
+  },
+  singleProduct: {
+    '工艺分项': 0
+  },
+  bomCost: {
+    '项目': 0, '金额': 1, '百分比': 2, '备注': 3
+  },
+  productInfo: {
+    '产品名称': 0,
+    '出成率': 5,
+    '实际出厂价': 7,
+    '净含量': 9
+  }
+}
+
+function parseErrorCells(errors, type, header) {
+  const map = {}
+  if (!errors || errors.length === 0) return map
+
+  const regionNames = {
+    productComposition: '产品组成',
+    packaging: '包材组成',
+    singleProduct: '单个成品组成',
+    bomCost: 'BOM成本合计',
+    productInfo: '产品信息'
+  }
+  const regionName = regionNames[type]
+  if (!regionName) return map
+
+  const fieldMap = { ...FIELD_COL_MAP[type] }
+  if (type === 'singleProduct' && header) {
+    header.forEach((name, idx) => {
+      if (name.includes('组成')) fieldMap['组成'] = idx
+      if (name.includes('不含税单价')) fieldMap['不含税单价'] = idx
+      if (name.includes('金额')) fieldMap['金额'] = idx
+      if (name.includes('百分比')) fieldMap['百分比'] = idx
+    })
+  }
+
+  for (const err of errors) {
+    if (!err.includes(regionName)) continue
+
+    const rowMatch = err.match(/第(\d+)行/)
+    const rowNum = rowMatch ? parseInt(rowMatch[1]) : null
+
+    const fieldMatches = err.match(/「([^」]+)」/g)
+    if (fieldMatches) {
+      fieldMatches.forEach(m => {
+        const field = m.replace(/[「」]/g, '')
+        const colIdx = fieldMap[field]
+        if (colIdx !== undefined && rowNum !== null) {
+          map[`${rowNum}-${colIdx}`] = true
+        }
+      })
+    }
+
+    const missingMatch = err.match(/缺少[：:](.+)/)
+    if (missingMatch) {
+      const fields = missingMatch[1].split(/[、,]/).map(f => f.trim())
+      fields.forEach(field => {
+        const colIdx = fieldMap[field]
+        if (colIdx !== undefined && rowNum !== null) {
+          map[`${rowNum}-${colIdx}`] = true
+        }
+      })
+    }
+  }
+
+  return map
 }
 
 const formatPreviewCell = (val, colName, colIdx) => {
