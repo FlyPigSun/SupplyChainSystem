@@ -799,6 +799,8 @@ const formatPreviewCell = (val, colName, colIdx) => {
 // 预览表格合并计算（使用Excel原始合并信息）
 const previewSpanMethod = ({ row, column, rowIndex, columnIndex, type }) => {
   const colIdx = columnIndex
+  // BOM成本合计列已重新映射，原始合并信息不再适用，禁用合并
+  if (previewType.value === 'bomCost') return { rowspan: 1, colspan: 1 }
   if (type === 'header') {
     if (!previewHeaderMerges.value || previewHeaderMerges.value.length === 0) return { rowspan: 1, colspan: 1 }
     const merge = previewHeaderMerges.value[colIdx]
