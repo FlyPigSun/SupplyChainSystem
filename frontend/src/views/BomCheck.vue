@@ -47,10 +47,14 @@
     />
 
     <!-- 板块原始数据预览对话框 -->
-    <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="800px" destroy-on-close>
+    <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="900px" destroy-on-close>
       <el-table :data="previewRows" size="small" border style="width: 100%">
         <el-table-column prop="rowNum" label="行号" width="60" />
-        <el-table-column v-for="(_, colIdx) in previewRows[0]?.cells" :key="colIdx" :label="'列' + (colIdx + 1)">
+        <el-table-column
+          v-for="(colName, colIdx) in (previewHeader.length > 0 ? previewHeader : previewRows[0]?.cells || [])"
+          :key="colIdx"
+          :label="previewHeader.length > 0 ? colName : '列' + (colIdx + 1)"
+        >
           <template #default="{ row }">
             <span :class="{ 'cell-empty': !row.cells[colIdx] }">{{ row.cells[colIdx] || '(空)' }}</span>
           </template>
@@ -520,6 +524,7 @@ const correctingItem = ref(null)
 const showPreviewDialog = ref(false)
 const previewTitle = ref('')
 const previewRows = ref([])
+const previewHeader = ref([])
 
 // 模板检核结果折叠状态（默认折叠）
 const activeTemplateCheck = ref([])
@@ -577,7 +582,8 @@ const validationStats = computed(() => {
   return allSections.map(sec => {
     const group = groups.find(g => g.key === sec.key)
     const previewRows = dc?.[sec.key]?.previewRows || []
-    return { ...sec, count: group ? group.errors.length : 0, previewRows }
+    const header = dc?.[sec.key]?.header || []
+    return { ...sec, count: group ? group.errors.length : 0, previewRows, header }
   })
 })
 
@@ -614,7 +620,8 @@ const templateCheckDataItems = computed(() => {
       label: '产品组成',
       rows: dc.productComposition.dataRows,
       errors: dc.productComposition.errorRows,
-      previewRows: dc.productComposition.previewRows || []
+      previewRows: dc.productComposition.previewRows || [],
+      header: dc.productComposition.header || []
     })
   }
   if (dc.packaging) {
@@ -623,7 +630,8 @@ const templateCheckDataItems = computed(() => {
       label: '包材组成',
       rows: dc.packaging.dataRows,
       errors: dc.packaging.errorRows,
-      previewRows: dc.packaging.previewRows || []
+      previewRows: dc.packaging.previewRows || [],
+      header: dc.packaging.header || []
     })
   }
   if (dc.singleProduct) {
@@ -632,7 +640,8 @@ const templateCheckDataItems = computed(() => {
       label: '单个成品组成',
       rows: dc.singleProduct.dataRows,
       errors: dc.singleProduct.errorRows,
-      previewRows: dc.singleProduct.previewRows || []
+      previewRows: dc.singleProduct.previewRows || [],
+      header: dc.singleProduct.header || []
     })
   }
   if (dc.bomCost) {
@@ -641,7 +650,8 @@ const templateCheckDataItems = computed(() => {
       label: 'BOM成本合计',
       rows: dc.bomCost.dataRows,
       errors: dc.bomCost.errorRows,
-      previewRows: dc.bomCost.previewRows || []
+      previewRows: dc.bomCost.previewRows || [],
+      header: dc.bomCost.header || []
     })
   }
   if (dc.productInfo) {
@@ -650,7 +660,8 @@ const templateCheckDataItems = computed(() => {
       label: '产品信息',
       rows: dc.productInfo.found ? 1 : 0,
       errors: dc.productInfo.errors,
-      previewRows: dc.productInfo.previewRows || []
+      previewRows: dc.productInfo.previewRows || [],
+      header: dc.productInfo.header || []
     })
   }
   return items
@@ -745,6 +756,7 @@ const openPreview = (item) => {
   }
   previewTitle.value = item.label + ' — 原始数据预览'
   previewRows.value = item.previewRows
+  previewHeader.value = item.header || []
   showPreviewDialog.value = true
 }
 

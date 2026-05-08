@@ -338,8 +338,9 @@ function validateTemplateData(rows, headerDetails) {
   let statsSingleRows = 0, statsSingleErrs = 0;
   let statsBomRows = 0, statsBomErrs = 0;
   let statsInfoFound = false, statsInfoErrs = 0;
-  // 各区域预览数据（原始Excel行，最多20行）
+  // 各区域预览数据（原始Excel行，最多20行）及表头
   const previewProduct = [], previewPack = [], previewSingle = [], previewBom = [], previewInfo = [];
+  let headerProduct = [], headerPack = [], headerSingle = [], headerBom = [], headerInfo = [];
 
   // ========== 合法性校验辅助函数 ==========
 
@@ -467,6 +468,9 @@ function validateTemplateData(rows, headerDetails) {
       '金额': COL_COST
     };
     const errStart = errors.length;
+    // 收集表头
+    const headerRow = rows[headerDetails.productComposition.rowIndex];
+    const productHeader = headerRow ? headerRow.map(c => c == null ? '' : String(c)) : [];
 
     for (let i = startIdx; i < endIdx && i < rows.length; i++) {
       const r = rows[i];
@@ -530,6 +534,9 @@ function validateTemplateData(rows, headerDetails) {
       '百分比': COL_PERCENT
     };
     const errStart = errors.length;
+    // 收集表头
+    const headerRow = rows[headerDetails.packaging.rowIndex];
+    headerPack = headerRow ? headerRow.map(c => c == null ? '' : String(c)) : [];
 
     for (let i = startIdx; i < endIdx && i < rows.length; i++) {
       const r = rows[i];
@@ -574,6 +581,7 @@ function validateTemplateData(rows, headerDetails) {
 
     // 动态检测单个成品组成区域的列索引（新旧模板列布局可能不同）
     const headerRow = rows[headerDetails.singleProduct.rowIndex] || [];
+    headerSingle = headerRow.map(c => c == null ? '' : String(c));
     function findColIndex(keyword) {
       for (let i = 0; i < headerRow.length; i++) {
         if (String(headerRow[i] || '').includes(keyword)) return i;
@@ -672,6 +680,9 @@ function validateTemplateData(rows, headerDetails) {
         break;
       }
     }
+    // 收集表头（BOM成本合计的表头通常在区域标题下一行）
+    const bomHeaderRow = rows[headerDetails.bomCost.rowIndex + 1];
+    headerBom = bomHeaderRow ? bomHeaderRow.map(c => c == null ? '' : String(c)) : [];
 
     // 定义必填项及其匹配关键词（支持模糊匹配）
     const requiredItems = [
@@ -763,11 +774,11 @@ function validateTemplateData(rows, headerDetails) {
     valid: errors.length === 0,
     errors,
     stats: {
-      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs, previewRows: previewProduct },
-      packaging: { dataRows: statsPackRows, errorRows: statsPackErrs, previewRows: previewPack },
-      singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs, previewRows: previewSingle },
-      bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs, previewRows: previewBom },
-      productInfo: { found: statsInfoFound, errors: statsInfoErrs, previewRows: previewInfo }
+      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs, previewRows: previewProduct, header: productHeader },
+      packaging: { dataRows: statsPackRows, errorRows: statsPackErrs, previewRows: previewPack, header: headerPack },
+      singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs, previewRows: previewSingle, header: headerSingle },
+      bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs, previewRows: previewBom, header: headerBom },
+      productInfo: { found: statsInfoFound, errors: statsInfoErrs, previewRows: previewInfo, header: headerInfo }
     }
   };
 }
