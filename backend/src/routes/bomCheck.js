@@ -344,6 +344,8 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
   let headerProductMerges = [], headerPackMerges = [], headerSingleMerges = [], headerBomMerges = [], headerInfoMerges = [];
   // 各区域问题单元格（行号+字段名）
   const errorCellsProduct = [], errorCellsPack = [], errorCellsSingle = [], errorCellsBom = [], errorCellsInfo = [];
+  // 单个成品组成动态列索引（默认值，在区域内被覆盖）
+  let spColWeight = COL_WEIGHT, spColExPrice = COL_EX_PRICE, spColCost = COL_COST, spColPercent = COL_PERCENT;
 
   // ========== 合法性校验辅助函数 ==========
 
@@ -648,10 +650,10 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
       }
       return -1;
     }
-    const spColWeight = findColIndex('组成') !== -1 ? findColIndex('组成') : COL_WEIGHT;
-    const spColExPrice = findColIndex('不含税单价') !== -1 ? findColIndex('不含税单价') : COL_EX_PRICE;
-    const spColCost = findColIndex('金额') !== -1 ? findColIndex('金额') : COL_COST;
-    const spColPercent = findColIndex('百分比') !== -1 ? findColIndex('百分比') : COL_PERCENT;
+    spColWeight = findColIndex('组成') !== -1 ? findColIndex('组成') : COL_WEIGHT;
+    spColExPrice = findColIndex('不含税单价') !== -1 ? findColIndex('不含税单价') : COL_EX_PRICE;
+    spColCost = findColIndex('金额') !== -1 ? findColIndex('金额') : COL_COST;
+    spColPercent = findColIndex('百分比') !== -1 ? findColIndex('百分比') : COL_PERCENT;
 
     const fieldMap = {
       '工艺分项': 0,
