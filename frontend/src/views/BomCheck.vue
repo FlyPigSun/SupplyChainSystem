@@ -48,14 +48,14 @@
 
     <!-- 板块原始数据预览对话框 -->
     <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="900px" destroy-on-close>
-      <el-table :data="previewRows" size="small" border style="width: 100%" :span-method="previewSpanMethod" :show-header="previewHeader.length > 0">
+      <el-table :data="previewRows" size="small" border style="width: 100%" :span-method="previewSpanMethod" :show-header="previewHeader.length > 0" :cell-class-name="previewCellClassName">
         <el-table-column
           v-for="(colName, colIdx) in (previewHeader.length > 0 ? previewHeader : previewRows[0]?.cells || [])"
           :key="colIdx"
           :label="previewHeader.length > 0 ? colName : '列' + (colIdx + 1)"
         >
           <template #default="{ row }">
-            <span :class="{ 'cell-empty': row.cells[colIdx] === '(空)', 'cell-error': previewErrorCells[`${row.rowNum}-${colIdx}`] }">{{ formatPreviewCell(row.cells[colIdx], colName, colIdx) }}</span>
+            <span :class="{ 'cell-empty': row.cells[colIdx] === '(空)' }">{{ formatPreviewCell(row.cells[colIdx], colName, colIdx) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -928,6 +928,14 @@ const previewSpanMethod = ({ row, column, rowIndex, columnIndex, type }) => {
   return { rowspan: merge.rowspan, colspan: merge.colspan }
 }
 
+// 预览表格单元格类名（高亮问题单元格）
+const previewCellClassName = ({ row, column, rowIndex, columnIndex }) => {
+  if (previewErrorCells.value[`${row.rowNum}-${columnIndex}`]) {
+    return 'cell-error'
+  }
+  return ''
+}
+
 
 </script>
 
@@ -1011,7 +1019,7 @@ const previewSpanMethod = ({ row, column, rowIndex, columnIndex, type }) => {
 .tcs-label-link { color: #409eff; cursor: pointer; text-decoration: underline; }
 .tcs-label-link:hover { color: #66b1ff; }
 .cell-empty { color: #c0c4cc; font-style: italic; }
-.cell-error { background: #fef0f0; }
+:deep(.el-table__cell.cell-error) { background: #fef0f0 !important; }
 @media (max-width: 768px) {
   .bom-check-page { padding: 12px; }
   .page-title { font-size: 18px; }
