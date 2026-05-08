@@ -330,7 +330,7 @@ function hasValue(val) {
 
 // 校验模板数据非空
 // headerDetails 是 validateTemplateHeaders 返回的 details
-function validateTemplateData(rows, headerDetails) {
+function validateTemplateData(rows, headerDetails, mergeMap = {}) {
   const errors = [];
   // 各区域统计
   let statsProductRows = 0, statsProductErrs = 0;
@@ -491,7 +491,14 @@ function validateTemplateData(rows, headerDetails) {
 
       statsProductRows++;
       if (previewProduct.length < 20) {
-        previewProduct.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+        previewProduct.push({
+          rowNum: i + 1,
+          cells: r.map(c => c == null ? '' : String(c)),
+          merges: r.map((_, colIdx) => {
+            const merge = mergeMap[`${i},${colIdx}`];
+            return merge || { rowspan: 1, colspan: 1 };
+          })
+        });
       }
       const nonEmpty = getNonEmptyFields(r, fieldMap);
       // 全空行也提示数据不完整（用户要求模板中不应留空行）
@@ -551,7 +558,14 @@ function validateTemplateData(rows, headerDetails) {
 
       statsPackRows++;
       if (previewPack.length < 20) {
-        previewPack.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+        previewPack.push({
+          rowNum: i + 1,
+          cells: r.map(c => c == null ? '' : String(c)),
+          merges: r.map((_, colIdx) => {
+            const merge = mergeMap[`${i},${colIdx}`];
+            return merge || { rowspan: 1, colspan: 1 };
+          })
+        });
       }
       // (a) 非空校验
       const missing = checkAllNonEmpty(r, fieldMap);
@@ -615,7 +629,14 @@ function validateTemplateData(rows, headerDetails) {
 
       statsSingleRows++;
       if (previewSingle.length < 20) {
-        previewSingle.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+        previewSingle.push({
+          rowNum: i + 1,
+          cells: r.map(c => c == null ? '' : String(c)),
+          merges: r.map((_, colIdx) => {
+            const merge = mergeMap[`${i},${colIdx}`];
+            return merge || { rowspan: 1, colspan: 1 };
+          })
+        });
       }
 
       // 区分汇总行和普通行
@@ -714,7 +735,14 @@ function validateTemplateData(rows, headerDetails) {
       if (matchedItem) {
         statsBomRows++;
         if (previewBom.length < 20) {
-          previewBom.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+          previewBom.push({
+            rowNum: i + 1,
+            cells: r.map(c => c == null ? '' : String(c)),
+            merges: r.map((_, colIdx) => {
+              const merge = mergeMap[`${i},${colIdx}`];
+              return merge || { rowspan: 1, colspan: 1 };
+            })
+          });
         }
         const missing = [];
         if (isEmptyCell(r[COL_COST])) missing.push('金额');
@@ -740,7 +768,14 @@ function validateTemplateData(rows, headerDetails) {
     if (cell0.includes('产品名称')) {
       statsInfoFound = true;
       if (previewInfo.length < 20) {
-        previewInfo.push({ rowNum: i + 1, cells: r.map(c => c == null ? '' : String(c)) });
+        previewInfo.push({
+          rowNum: i + 1,
+          cells: r.map(c => c == null ? '' : String(c)),
+          merges: r.map((_, colIdx) => {
+            const merge = mergeMap[`${i},${colIdx}`];
+            return merge || { rowspan: 1, colspan: 1 };
+          })
+        });
       }
       const errStart = errors.length;
       // (a) 非空校验
@@ -966,7 +1001,7 @@ function parseAuditSheet(rows) {
   };
 }
 
-async function runBomCheck(rows, fileName) {
+async function runBomCheck(rows, fileName, mergeMap = {}) {
   // 先进行表头结构校验
   const headerValidation = validateTemplateHeaders(rows);
   if (!headerValidation.valid) {
@@ -1004,7 +1039,7 @@ async function runBomCheck(rows, fileName) {
   }
 
   // 表头校验通过后，进行数据非空校验
-  const dataValidation = validateTemplateData(rows, headerValidation.details);
+  const dataValidation = validateTemplateData(rows, headerValidation.details, mergeMap);
   if (!dataValidation.valid) {
     return {
       productName: fileName,
@@ -1375,6 +1410,26 @@ async function runBomCheck(rows, fileName) {
   };
 }
 
+// 将 xlsx merges 转换为每个单元格的合并信息 map
+function buildMergeMap(merges) {
+  const map = {};
+  if (!merges) return map;
+  for (const m of merges) {
+    const { s, e } = m;
+    const rowspan = e.r - s.r + 1;
+    const colspan = e.c - s.c + 1;
+    map[`${s.r},${s.c}`] = { rowspan, colspan };
+    for (let r = s.r; r <= e.r; r++) {
+      for (let c = s.c; c <= e.c; c++) {
+        if (r !== s.r || c !== s.c) {
+          map[`${r},${c}`] = { rowspan: 0, colspan: 0 };
+        }
+      }
+    }
+  }
+  return map;
+}
+
 router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
   try {
     if (!req.file) return res.status(400).json({ ok: false, msg: '请上传文件' });
@@ -1383,8 +1438,9 @@ router.post('/', authMiddleware, upload.single('file'), async (req, res) => {
     const workbook = XLSX.read(req.file.buffer, { type: 'buffer' });
     const worksheet = workbook.Sheets[workbook.SheetNames[0]];
     const rows = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: '' });
+    const mergeMap = buildMergeMap(worksheet['!merges']);
 
-    const result = await runBomCheck(rows, fileName);
+    const result = await runBomCheck(rows, fileName, mergeMap);
 
     await logOperation(
       req.user.username,
