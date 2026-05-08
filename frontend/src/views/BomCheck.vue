@@ -94,9 +94,10 @@
               v-for="sec in validationStats"
               :key="sec.key"
               class="validation-section-pill"
-              :class="{ 'has-error': sec.count > 0 }"
+              :class="{ 'has-error': sec.count > 0, 'has-preview': sec.previewRows.length > 0 }"
+              @click="sec.previewRows.length > 0 && openPreview(sec)"
             >
-              <span class="section-pill-label">{{ sec.label }}</span>
+              <span class="section-pill-label" :class="{ 'pill-link': sec.previewRows.length > 0 }">{{ sec.label }}</span>
               <el-tag :type="sec.count > 0 ? 'danger' : 'success'" size="small">
                 {{ sec.count > 0 ? sec.count + ' 项错误' : '正常' }}
               </el-tag>
@@ -572,9 +573,11 @@ const validationStats = computed(() => {
     { key: 'productInfo', label: '产品信息' }
   ]
   const groups = groupedValidationErrors.value
+  const dc = result.value?._templateCheck?.dataCheck
   return allSections.map(sec => {
     const group = groups.find(g => g.key === sec.key)
-    return { ...sec, count: group ? group.errors.length : 0 }
+    const previewRows = dc?.[sec.key]?.previewRows || []
+    return { ...sec, count: group ? group.errors.length : 0, previewRows }
   })
 })
 
@@ -780,7 +783,10 @@ const openPreview = (item) => {
 .validation-section-overview { display: flex; flex-wrap: wrap; gap: 10px; padding: 14px 16px; background: #fff; border-radius: 8px; margin: 16px 0; border: 1px solid #f0f0f0; }
 .validation-section-pill { display: flex; align-items: center; gap: 8px; padding: 8px 14px; background: #f6ffed; border-radius: 6px; border: 1px solid #b7eb8f; }
 .validation-section-pill.has-error { background: #fff2f0; border-color: #ffccc7; }
+.validation-section-pill.has-preview { cursor: pointer; }
+.validation-section-pill.has-preview:hover { opacity: 0.85; }
 .section-pill-label { font-size: 13px; color: #1d2129; font-weight: 500; }
+.section-pill-label.pill-link { color: #409eff; text-decoration: underline; }
 
 /* 折叠面板 */
 .validation-collapse { border: none; }
