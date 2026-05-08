@@ -680,9 +680,14 @@ function validateTemplateData(rows, headerDetails) {
         break;
       }
     }
-    // 收集表头（BOM成本合计的表头通常在区域标题下一行）
+    // 收集表头（BOM成本合计的表头通常在区域标题下一行，第一列应为"项目"）
     const bomHeaderRow = rows[headerDetails.bomCost.rowIndex + 1];
-    headerBom = bomHeaderRow ? bomHeaderRow.map(c => c == null ? '' : String(c)) : [];
+    const bomHeaderFirst = String(bomHeaderRow?.[0] || '').trim();
+    if (bomHeaderRow && bomHeaderFirst === '项目') {
+      headerBom = bomHeaderRow.map(c => c == null ? '' : String(c));
+    } else {
+      headerBom = ['项目', '金额', '百分比', '备注'];
+    }
 
     // 定义必填项及其匹配关键词（支持模糊匹配）
     const requiredItems = [

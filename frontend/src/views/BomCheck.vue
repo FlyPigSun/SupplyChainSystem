@@ -56,7 +56,7 @@
           :label="previewHeader.length > 0 ? colName : '列' + (colIdx + 1)"
         >
           <template #default="{ row }">
-            <span :class="{ 'cell-empty': !row.cells[colIdx] }">{{ row.cells[colIdx] || '(空)' }}</span>
+            <span :class="{ 'cell-empty': !row.cells[colIdx] }">{{ formatPreviewCell(row.cells[colIdx], colName) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -758,6 +758,23 @@ const openPreview = (item) => {
   previewRows.value = item.previewRows
   previewHeader.value = item.header || []
   showPreviewDialog.value = true
+}
+
+const formatPreviewCell = (val, colName) => {
+  if (val == null || val === '') return '(空)'
+  const s = String(val).trim()
+  if (s === '') return '(空)'
+  const num = parseFloat(s)
+  if (isNaN(num)) return s
+  // 百分比列
+  if (colName && (colName.includes('百分比') || colName.includes('percent') || colName.includes('%'))) {
+    return (num * 100).toFixed(2) + '%'
+  }
+  // 金额/单价列
+  if (colName && (colName.includes('金额') || colName.includes('单价') || colName.includes('价格'))) {
+    return num.toFixed(2)
+  }
+  return s
 }
 
 
