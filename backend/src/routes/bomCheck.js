@@ -341,6 +341,7 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
   // 各区域预览数据（原始Excel行，最多20行）及表头
   const previewProduct = [], previewPack = [], previewSingle = [], previewBom = [], previewInfo = [];
   let headerProduct = [], headerPack = [], headerSingle = [], headerBom = [], headerInfo = [];
+  let headerProductMerges = [], headerPackMerges = [], headerSingleMerges = [], headerBomMerges = [], headerInfoMerges = [];
 
   // ========== 合法性校验辅助函数 ==========
 
@@ -468,9 +469,14 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
       '金额': COL_COST
     };
     const errStart = errors.length;
-    // 收集表头
+    // 收集表头及合并信息
     const headerRow = rows[headerDetails.productComposition.rowIndex];
+    const hRowIdx = headerDetails.productComposition.rowIndex;
     headerProduct = headerRow ? headerRow.map(c => c == null ? '' : String(c)) : [];
+    headerProductMerges = headerRow ? headerRow.map((_, colIdx) => {
+      const merge = mergeMap[`${hRowIdx},${colIdx}`];
+      return merge || { rowspan: 1, colspan: 1 };
+    }) : [];
 
     for (let i = startIdx; i < endIdx && i < rows.length; i++) {
       const r = rows[i];
@@ -541,9 +547,14 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
       '百分比': COL_PERCENT
     };
     const errStart = errors.length;
-    // 收集表头
+    // 收集表头及合并信息
     const headerRow = rows[headerDetails.packaging.rowIndex];
+    const hRowIdx = headerDetails.packaging.rowIndex;
     headerPack = headerRow ? headerRow.map(c => c == null ? '' : String(c)) : [];
+    headerPackMerges = headerRow ? headerRow.map((_, colIdx) => {
+      const merge = mergeMap[`${hRowIdx},${colIdx}`];
+      return merge || { rowspan: 1, colspan: 1 };
+    }) : [];
 
     for (let i = startIdx; i < endIdx && i < rows.length; i++) {
       const r = rows[i];
@@ -595,7 +606,12 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
 
     // 动态检测单个成品组成区域的列索引（新旧模板列布局可能不同）
     const headerRow = rows[headerDetails.singleProduct.rowIndex] || [];
+    const hRowIdx = headerDetails.singleProduct.rowIndex;
     headerSingle = headerRow.map(c => c == null ? '' : String(c));
+    headerSingleMerges = headerRow.map((_, colIdx) => {
+      const merge = mergeMap[`${hRowIdx},${colIdx}`];
+      return merge || { rowspan: 1, colspan: 1 };
+    });
     function findColIndex(keyword) {
       for (let i = 0; i < headerRow.length; i++) {
         if (String(headerRow[i] || '').includes(keyword)) return i;
@@ -703,11 +719,17 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
     }
     // 收集表头（BOM成本合计的表头通常在区域标题下一行，第一列应为"项目"）
     const bomHeaderRow = rows[headerDetails.bomCost.rowIndex + 1];
+    const hRowIdx = headerDetails.bomCost.rowIndex + 1;
     const bomHeaderFirst = String(bomHeaderRow?.[0] || '').trim();
     if (bomHeaderRow && bomHeaderFirst === '项目') {
       headerBom = bomHeaderRow.map(c => c == null ? '' : String(c));
+      headerBomMerges = bomHeaderRow.map((_, colIdx) => {
+        const merge = mergeMap[`${hRowIdx},${colIdx}`];
+        return merge || { rowspan: 1, colspan: 1 };
+      });
     } else {
       headerBom = ['项目', '金额', '百分比', '备注'];
+      headerBomMerges = [{ rowspan: 1, colspan: 1 }, { rowspan: 1, colspan: 1 }, { rowspan: 1, colspan: 1 }, { rowspan: 1, colspan: 1 }];
     }
 
     // 定义必填项及其匹配关键词（支持模糊匹配）
@@ -814,11 +836,11 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
     valid: errors.length === 0,
     errors,
     stats: {
-      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs, previewRows: previewProduct, header: headerProduct },
-      packaging: { dataRows: statsPackRows, errorRows: statsPackErrs, previewRows: previewPack, header: headerPack },
-      singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs, previewRows: previewSingle, header: headerSingle },
-      bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs, previewRows: previewBom, header: headerBom },
-      productInfo: { found: statsInfoFound, errors: statsInfoErrs, previewRows: previewInfo, header: headerInfo }
+      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs, previewRows: previewProduct, header: headerProduct, headerMerges: headerProductMerges },
+      packaging: { dataRows: statsPackRows, errorRows: statsPackErrs, previewRows: previewPack, header: headerPack, headerMerges: headerPackMerges },
+      singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs, previewRows: previewSingle, header: headerSingle, headerMerges: headerSingleMerges },
+      bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs, previewRows: previewBom, header: headerBom, headerMerges: headerBomMerges },
+      productInfo: { found: statsInfoFound, errors: statsInfoErrs, previewRows: previewInfo, header: headerInfo, headerMerges: headerInfoMerges }
     }
   };
 }

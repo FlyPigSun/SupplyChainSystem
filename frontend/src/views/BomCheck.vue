@@ -524,6 +524,7 @@ const showPreviewDialog = ref(false)
 const previewTitle = ref('')
 const previewRows = ref([])
 const previewHeader = ref([])
+const previewHeaderMerges = ref([])
 
 // 模板检核结果折叠状态（默认折叠）
 const activeTemplateCheck = ref([])
@@ -582,7 +583,8 @@ const validationStats = computed(() => {
     const group = groups.find(g => g.key === sec.key)
     const previewRows = dc?.[sec.key]?.previewRows || []
     const header = dc?.[sec.key]?.header || []
-    return { ...sec, count: group ? group.errors.length : 0, previewRows, header }
+    const headerMerges = dc?.[sec.key]?.headerMerges || []
+    return { ...sec, count: group ? group.errors.length : 0, previewRows, header, headerMerges }
   })
 })
 
@@ -620,7 +622,8 @@ const templateCheckDataItems = computed(() => {
       rows: dc.productComposition.dataRows,
       errors: dc.productComposition.errorRows,
       previewRows: dc.productComposition.previewRows || [],
-      header: dc.productComposition.header || []
+      header: dc.productComposition.header || [],
+      headerMerges: dc.productComposition.headerMerges || []
     })
   }
   if (dc.packaging) {
@@ -630,7 +633,8 @@ const templateCheckDataItems = computed(() => {
       rows: dc.packaging.dataRows,
       errors: dc.packaging.errorRows,
       previewRows: dc.packaging.previewRows || [],
-      header: dc.packaging.header || []
+      header: dc.packaging.header || [],
+      headerMerges: dc.packaging.headerMerges || []
     })
   }
   if (dc.singleProduct) {
@@ -640,7 +644,8 @@ const templateCheckDataItems = computed(() => {
       rows: dc.singleProduct.dataRows,
       errors: dc.singleProduct.errorRows,
       previewRows: dc.singleProduct.previewRows || [],
-      header: dc.singleProduct.header || []
+      header: dc.singleProduct.header || [],
+      headerMerges: dc.singleProduct.headerMerges || []
     })
   }
   if (dc.bomCost) {
@@ -650,7 +655,8 @@ const templateCheckDataItems = computed(() => {
       rows: dc.bomCost.dataRows,
       errors: dc.bomCost.errorRows,
       previewRows: dc.bomCost.previewRows || [],
-      header: dc.bomCost.header || []
+      header: dc.bomCost.header || [],
+      headerMerges: dc.bomCost.headerMerges || []
     })
   }
   if (dc.productInfo) {
@@ -660,7 +666,8 @@ const templateCheckDataItems = computed(() => {
       rows: dc.productInfo.found ? 1 : 0,
       errors: dc.productInfo.errors,
       previewRows: dc.productInfo.previewRows || [],
-      header: dc.productInfo.header || []
+      header: dc.productInfo.header || [],
+      headerMerges: dc.productInfo.headerMerges || []
     })
   }
   return items
@@ -756,6 +763,7 @@ const openPreview = (item) => {
   previewTitle.value = item.label + ' — 原始数据预览'
   previewRows.value = item.previewRows
   previewHeader.value = item.header || []
+  previewHeaderMerges.value = item.headerMerges || []
   showPreviewDialog.value = true
 }
 
@@ -777,9 +785,15 @@ const formatPreviewCell = (val, colName) => {
 }
 
 // 预览表格合并计算（使用Excel原始合并信息）
-const previewSpanMethod = ({ row, column, rowIndex, columnIndex }) => {
-  if (!previewRows.value || previewRows.value.length === 0) return { rowspan: 1, colspan: 1 }
+const previewSpanMethod = ({ row, column, rowIndex, columnIndex, type }) => {
   const colIdx = columnIndex
+  if (type === 'header') {
+    if (!previewHeaderMerges.value || previewHeaderMerges.value.length === 0) return { rowspan: 1, colspan: 1 }
+    const merge = previewHeaderMerges.value[colIdx]
+    if (!merge) return { rowspan: 1, colspan: 1 }
+    return { rowspan: merge.rowspan, colspan: merge.colspan }
+  }
+  if (!previewRows.value || previewRows.value.length === 0) return { rowspan: 1, colspan: 1 }
   const rowData = previewRows.value[rowIndex]
   if (!rowData || !rowData.merges) return { rowspan: 1, colspan: 1 }
   const merge = rowData.merges[colIdx]
