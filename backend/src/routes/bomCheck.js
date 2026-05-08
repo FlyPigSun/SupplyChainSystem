@@ -391,22 +391,6 @@ function validateTemplateData(rows, headerDetails) {
     return true;
   }
 
-  // 检查小数位数（必须 ≤ 2位）
-  function checkDecimalPlaces(val, fieldName, rowNum, prefix) {
-    if (val == null || val === undefined) return true;
-    const str = String(val).trim();
-    if (str === '' || str === '-' || str.startsWith('#')) return true;
-    const dotIndex = str.indexOf('.');
-    if (dotIndex !== -1) {
-      const decimalPart = str.substring(dotIndex + 1);
-      if (decimalPart.length > 2) {
-        errors.push(`${prefix}第${rowNum}行「${fieldName}」必须保留两位小数，当前值为 ${val}`);
-        return false;
-      }
-    }
-    return true;
-  }
-
   // 检查金额公式
   // 产品组成：金额 ≈ 重量(g) × 含税单价(元/kg) / 1000
   // 包材/单个成品组成：金额 ≈ 数量/组成 × 单价（不除1000）
@@ -527,9 +511,6 @@ function validateTemplateData(rows, headerDetails) {
       checkRange(r[COL_WEIGHT], 0, null, '重量', i + 1, '产品组成'); // >0
       checkRange(r[COL_TAX_PRICE], 0, null, '含税单价', i + 1, '产品组成'); // ≥0
       checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '产品组成'); // ≥0
-      checkDecimalPlaces(r[COL_TAX_PRICE], '含税单价', i + 1, '产品组成');
-      checkDecimalPlaces(r[COL_EX_PRICE], '不含税单价', i + 1, '产品组成');
-      checkDecimalPlaces(r[COL_COST], '金额', i + 1, '产品组成');
       // 金额公式校验
       checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '产品组成');
     }
@@ -584,9 +565,6 @@ function validateTemplateData(rows, headerDetails) {
       checkRange(r[COL_TAX_PRICE], 0, null, '含税单价', i + 1, '包材组成'); // ≥0
       checkRange(r[COL_EX_PRICE], 0, null, '不含税单价', i + 1, '包材组成'); // ≥0
       checkPercentRange(r[COL_PERCENT], '百分比', i + 1, '包材组成');
-      checkDecimalPlaces(r[COL_TAX_PRICE], '含税单价', i + 1, '包材组成');
-      checkDecimalPlaces(r[COL_EX_PRICE], '不含税单价', i + 1, '包材组成');
-      checkDecimalPlaces(r[COL_COST], '金额', i + 1, '包材组成');
       // 金额公式校验（包材：数量 × 含税单价，单价是单个价格，不除1000）
       checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '包材组成', true);
     }
@@ -658,8 +636,6 @@ function validateTemplateData(rows, headerDetails) {
 
         // (b) 汇总行合法性校验：不含税单价 ≥ 0，组成 × 不含税单价 = 金额
         checkRange(r[spColExPrice], 0, null, '不含税单价', i + 1, '单个成品组成');
-        checkDecimalPlaces(r[spColExPrice], '不含税单价', i + 1, '单个成品组成');
-        checkDecimalPlaces(r[spColCost], '金额', i + 1, '单个成品组成');
         checkAmountFormula(r[spColWeight], r[spColExPrice], r[spColCost], i + 1, `单个成品组成(${cell0})`, true, '不含税单价');
 
       } else if (summaryOnlyAmount.includes(cell0)) {
@@ -685,8 +661,6 @@ function validateTemplateData(rows, headerDetails) {
         checkRange(r[spColWeight], 0, null, '组成', i + 1, '单个成品组成'); // >0
         checkRange(r[spColExPrice], 0, null, '不含税单价', i + 1, '单个成品组成'); // ≥0
         checkPercentRange(r[spColPercent], '百分比', i + 1, '单个成品组成');
-        checkDecimalPlaces(r[spColExPrice], '不含税单价', i + 1, '单个成品组成');
-        checkDecimalPlaces(r[spColCost], '金额', i + 1, '单个成品组成');
         // 金额公式校验：组成(g) × 不含税单价 = 金额（不除1000）
         checkAmountFormula(r[spColWeight], r[spColExPrice], r[spColCost], i + 1, '单个成品组成', true, '不含税单价');
       }
@@ -747,7 +721,6 @@ function validateTemplateData(rows, headerDetails) {
 
         // 合法性校验
         checkRange(r[COL_COST], null, null, '金额', i + 1, 'BOM成本合计'); // 仅检查是否为数字
-        checkDecimalPlaces(r[COL_COST], '金额', i + 1, 'BOM成本合计');
         checkPercentRange(r[COL_PERCENT], '百分比', i + 1, 'BOM成本合计');
       }
     }
