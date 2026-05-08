@@ -757,13 +757,21 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
       if (matchedItem) {
         statsBomRows++;
         if (previewBom.length < 20) {
+          // BOM成本合计区域：项目(0) | 金额(COL_COST) | 百分比(COL_PERCENT) | 备注(COL_PERCENT+1)
           previewBom.push({
             rowNum: i + 1,
-            cells: r.map(c => c == null ? '' : String(c)),
-            merges: r.map((_, colIdx) => {
-              const merge = mergeMap[`${i},${colIdx}`];
-              return merge || { rowspan: 1, colspan: 1 };
-            })
+            cells: [
+              r[0] == null ? '' : String(r[0]),
+              r[COL_COST] == null ? '' : String(r[COL_COST]),
+              r[COL_PERCENT] == null ? '' : String(r[COL_PERCENT]),
+              r[COL_PERCENT + 1] == null ? '' : String(r[COL_PERCENT + 1])
+            ],
+            merges: [
+              mergeMap[`${i},0`] || { rowspan: 1, colspan: 1 },
+              mergeMap[`${i},${COL_COST}`] || { rowspan: 1, colspan: 1 },
+              mergeMap[`${i},${COL_PERCENT}`] || { rowspan: 1, colspan: 1 },
+              mergeMap[`${i},${COL_PERCENT + 1}`] || { rowspan: 1, colspan: 1 }
+            ]
           });
         }
         const missing = [];
