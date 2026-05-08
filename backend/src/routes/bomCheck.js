@@ -486,7 +486,7 @@ function validateTemplateData(rows, headerDetails) {
     const errStart = errors.length;
     // 收集表头
     const headerRow = rows[headerDetails.productComposition.rowIndex];
-    const productHeader = headerRow ? headerRow.map(c => c == null ? '' : String(c)) : [];
+    headerProduct = headerRow ? headerRow.map(c => c == null ? '' : String(c)) : [];
 
     for (let i = startIdx; i < endIdx && i < rows.length; i++) {
       const r = rows[i];
@@ -801,7 +801,7 @@ function validateTemplateData(rows, headerDetails) {
     valid: errors.length === 0,
     errors,
     stats: {
-      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs, previewRows: previewProduct, header: productHeader },
+      productComposition: { dataRows: statsProductRows, errorRows: statsProductErrs, previewRows: previewProduct, header: headerProduct },
       packaging: { dataRows: statsPackRows, errorRows: statsPackErrs, previewRows: previewPack, header: headerPack },
       singleProduct: { dataRows: statsSingleRows, errorRows: statsSingleErrs, previewRows: previewSingle, header: headerSingle },
       bomCost: { dataRows: statsBomRows, errorRows: statsBomErrs, previewRows: previewBom, header: headerBom },
