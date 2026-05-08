@@ -48,7 +48,7 @@
 
     <!-- 板块原始数据预览对话框 -->
     <el-dialog v-model="showPreviewDialog" :title="previewTitle" width="900px" destroy-on-close>
-      <el-table :data="previewRows" size="small" border style="width: 100%" :span-method="previewSpanMethod">
+      <el-table :data="previewRows" size="small" border style="width: 100%" :span-method="previewSpanMethod" :show-header="previewHeader.length > 0">
         <el-table-column
           v-for="(colName, colIdx) in (previewHeader.length > 0 ? previewHeader : previewRows[0]?.cells || [])"
           :key="colIdx"
