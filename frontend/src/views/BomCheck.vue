@@ -55,7 +55,7 @@
           :label="previewHeader.length > 0 ? colName : '列' + (colIdx + 1)"
         >
           <template #default="{ row }">
-            <span :class="{ 'cell-empty': !row.cells[colIdx] }">{{ formatPreviewCell(row.cells[colIdx], colName) }}</span>
+            <span :class="{ 'cell-empty': !row.cells[colIdx] }">{{ formatPreviewCell(row.cells[colIdx], colName, colIdx) }}</span>
           </template>
         </el-table-column>
       </el-table>
@@ -525,6 +525,7 @@ const previewTitle = ref('')
 const previewRows = ref([])
 const previewHeader = ref([])
 const previewHeaderMerges = ref([])
+const previewType = ref('')
 
 // 模板检核结果折叠状态（默认折叠）
 const activeTemplateCheck = ref([])
@@ -764,13 +765,24 @@ const openPreview = (item) => {
   previewRows.value = item.previewRows
   previewHeader.value = item.header || []
   previewHeaderMerges.value = item.headerMerges || []
+  previewType.value = item.key || ''
   showPreviewDialog.value = true
 }
 
-const formatPreviewCell = (val, colName) => {
+const formatPreviewCell = (val, colName, colIdx) => {
   if (val == null || val === '') return '(空)'
   const s = String(val).trim()
   if (s === '') return '(空)'
+
+  // 产品信息区域：列6出成率→百分数，列8实际出厂价/列10净含量→两位小数
+  if (previewType.value === 'productInfo') {
+    const num = parseFloat(s)
+    if (isNaN(num)) return s
+    if (colIdx === 5) return (num * 100).toFixed(2) + '%'        // 列6: 出成率
+    if (colIdx === 7 || colIdx === 9) return num.toFixed(2)     // 列8: 实际出厂价, 列10: 净含量
+    return s
+  }
+
   const num = parseFloat(s)
   if (isNaN(num)) return s
   // 百分比列
