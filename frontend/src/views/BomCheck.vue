@@ -87,7 +87,7 @@
         <el-card shadow="never" class="result-card validation-status-card">
           <div class="validation-status-header">
             <el-icon :size="32" color="#f56c6c"><CircleCloseFilled /></el-icon>
-            <div class="validation-status-title">模板检核未通过</div>
+            <div class="validation-status-title">{{ result.productName }} 模板检核未通过</div>
             <div class="validation-status-sub">共 {{ result._validationErrors.length }} 项错误，请修正后重新上传</div>
           </div>
 
