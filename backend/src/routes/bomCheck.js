@@ -397,7 +397,7 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
   }
 
   // 检查金额公式
-  // 产品组成：金额 ≈ 重量(g) × 含税单价(元/kg) / 1000
+  // 产品组成：金额 ≈ 重量(g) × 不含税单价(元/kg) / 1000
   // 包材/单个成品组成：金额 ≈ 数量/组成 × 单价（不除1000）
   function checkAmountFormula(weight, unitPrice, amount, rowNum, prefix, noDivideBy1000 = false, priceLabel = '含税单价') {
     const w = parseNumberValue(weight);
@@ -541,7 +541,7 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
 
       // 金额公式校验
       const beforeFormula = errors.length;
-      checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '产品组成');
+      checkAmountFormula(r[COL_WEIGHT], r[COL_EX_PRICE], r[COL_COST], i + 1, '产品组成', false, '不含税单价');
       if (errors.length > beforeFormula) errorCellsProduct.push({ rowNum: i + 1, fields: ['金额'] });
     }
     statsProductErrs = errors.length - errStart;
