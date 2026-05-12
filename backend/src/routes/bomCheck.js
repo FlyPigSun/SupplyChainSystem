@@ -398,7 +398,7 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
 
   // 检查金额公式
   // 产品组成：金额 ≈ 重量(g) × 不含税单价(元/kg) / 1000
-  // 包材/单个成品组成：金额 ≈ 数量/组成 × 单价（不除1000）
+  // 包材/单个成品组成：金额 ≈ 数量/组成 × 不含税单价（不除1000）
   function checkAmountFormula(weight, unitPrice, amount, rowNum, prefix, noDivideBy1000 = false, priceLabel = '含税单价') {
     const w = parseNumberValue(weight);
     const p = parseNumberValue(unitPrice);
@@ -620,9 +620,9 @@ function validateTemplateData(rows, headerDetails, mergeMap = {}) {
       checkPercentRange(r[COL_PERCENT], '百分比', i + 1, '包材组成');
       if (errors.length > beforePct) errorCellsPack.push({ rowNum: i + 1, fields: ['百分比'] });
 
-      // 金额公式校验（包材：数量 × 含税单价，单价是单个价格，不除1000）
+      // 金额公式校验（包材：数量 × 不含税单价，单价是单个价格，不除1000）
       const beforeFormula = errors.length;
-      checkAmountFormula(r[COL_WEIGHT], r[COL_TAX_PRICE], r[COL_COST], i + 1, '包材组成', true);
+      checkAmountFormula(r[COL_WEIGHT], r[COL_EX_PRICE], r[COL_COST], i + 1, '包材组成', true, '不含税单价');
       if (errors.length > beforeFormula) errorCellsPack.push({ rowNum: i + 1, fields: ['金额'] });
     }
     statsPackErrs = errors.length - errStart;
